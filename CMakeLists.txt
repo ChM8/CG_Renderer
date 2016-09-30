@@ -75,6 +75,7 @@ add_executable(nori
   src/photonmapper.cpp
   src/sphere.cpp
   src/arealight.cpp
+  src/normals.cpp
 )
 
 # The following lines build the warping test application
