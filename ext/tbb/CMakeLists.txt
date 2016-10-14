@@ -35,6 +35,7 @@ elseif(WIN32)
     list(APPEND tbb_src src/tbb/ia32-masm/atomic_support.asm
 	    src/tbb/ia32-masm/itsx.asm src/tbb/ia32-masm/lock_byte.asm)
   endif()
+  set(CMAKE_DEBUG_POSTFIX "_debug")
 endif()
 
 # TBB library

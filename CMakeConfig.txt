@@ -60,7 +60,7 @@ elseif(APPLE)
   find_library(opengl_library OpenGL)
   find_library(corevideo_library CoreVideo)
   find_library(iokit_library IOKit)
-  set(extra_libs ${cocoa_library} ${opengl_library} ${corevideo_library} ${iokit_library} z)
+  set(extra_libs tbb ${cocoa_library} ${opengl_library} ${corevideo_library} ${iokit_library} z)
 
   # Compile in C++11 mode
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -stdlib=libc++")
@@ -74,7 +74,7 @@ elseif(APPLE)
   set(CMAKE_EXTERNAL_ARGUMENTS ${CMAKE_EXTERNAL_ARGUMENTS} -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET} -DCMAKE_OSX_SYSROOT=${CMAKE_OSX_SYSROOT})
 elseif("${CMAKE_SYSTEM}" MATCHES "Linux")
   # Linux-specific build flags
-  set(extra_libs GL Xxf86vm Xrandr Xinerama Xcursor Xi X11 pthread z dl)
+  set(extra_libs tbb GL Xxf86vm Xrandr Xinerama Xcursor Xi X11 pthread z dl)
 
   # Compile in C++11 mode
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -160,6 +160,6 @@ set_target_properties(pugixml PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/ext_build/dist/lib")
 
 # Link to several dependency libraries
-set(extra_libs nanogui glfw3 IlmImf IlmThread Iex IexMath Imath Half pugixml tbb ${extra_libs})
+set(extra_libs nanogui glfw3 IlmImf IlmThread Iex IexMath Imath Half pugixml ${extra_libs})
 
 # vim: set et ts=2 sw=2 ft=cmake nospell:

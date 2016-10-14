@@ -488,10 +488,10 @@ public:
         double *ptr = expFrequencies.get();
         for (int y=0; y<yres; ++y) {
             double yStart =  y    / (double) yres;
-            double yEnd   = (y+1) / (double) yres;
+            double yEnd   = (y+1-Epsilon) / (double) yres;
             for (int x=0; x<xres; ++x) {
                 double xStart =  x    / (double) xres;
-                double xEnd   = (x+1) / (double) xres;
+                double xEnd   = (x+1-Epsilon) / (double) xres;
                 ptr[y * xres + x] = hypothesis::adaptiveSimpson2D(
                     integrand, yStart, xStart, yEnd, xEnd) * scale;
                 if (ptr[y * xres + x] < 0)
