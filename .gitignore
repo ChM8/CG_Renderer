@@ -5,6 +5,7 @@
 /ext_build
 CMakeCache.txt
 CMakeFiles
+CMakeLists.txt
 Makefile
 *.cmake
 .idea

@@ -29,8 +29,39 @@ public:
     virtual std::string toString() const override;
 
     virtual T eval(const Point2f & uv) override {
-        /* to be implemented */
-	    return m_value1;
+        
+		// Moving the uv-coordinates, so that the point is at the "offset position"
+		// Absolute offset in uv-space (translation of whole [0,1]^2 plane by delta)
+		//Point2f offsUV = uv - m_delta;
+		// Move by offset of scaled box-size (why not absolute in uv-space?)
+		Point2f offsUV = Point2f(uv.x() - m_scale.x() * m_delta.x(), uv.y() - m_scale.y() * m_delta.y());
+
+		float uMod = fmod(offsUV.x(), m_scale.x() * 2);
+		uMod = uMod < 0 ? uMod + (m_scale.x() * 2) : uMod;
+		float vMod = fmod(offsUV.y(), m_scale.y() * 2);
+		vMod = vMod < 0 ? vMod + (m_scale.y() * 2) : vMod;
+
+		// Checking u:
+		if (uMod > m_scale.x()) {
+			// Checkin v:
+			if (vMod > m_scale.y()) {
+				return m_value1;
+			}
+			else {
+				return m_value2;
+			}
+			
+		}
+		else {
+			// Checkin v:
+			if (vMod > m_scale.y()) {
+				return m_value2;
+			}
+			else {
+				return m_value1;
+			}
+		}
+
     }
 
 protected:
@@ -39,6 +70,9 @@ protected:
 
     Point2f m_delta;
     Vector2f m_scale;
+
+	float min = 0;
+	float max = 1;
 };
 
 template <>

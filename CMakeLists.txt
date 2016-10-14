@@ -76,6 +76,9 @@ add_executable(nori
   src/sphere.cpp
   src/arealight.cpp
   src/normals.cpp
+  src/av.cpp
+  src/pointlight.cpp
+  src/direct.cpp
 )
 
 # The following lines build the warping test application
