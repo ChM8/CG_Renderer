@@ -28,38 +28,46 @@ public:
 		Normal3f n = itsM.shFrame.n;
 		const BSDF * objBSDF = itsM.mesh->getBSDF();
 
-		// Iterate over all lights in the scene and get the incoming radiance
+		// Iterate over all lights in the scene and get the incoming, direct radiance
 		std::vector<Emitter *> lights = scene->getLights();
 
-		// Prepare the EmitterQueryRecord (same 'ref' for all - rest will be overwritten)
-		EmitterQueryRecord lRec = EmitterQueryRecord(p);
+		// Prepare the EmitterQueryRecord (same 'ref' for all)
+		EmitterQueryRecord lRec;
+		Color3f sumIncRad = Color3f(0.0f);
 
 		for (std::vector<Emitter *>::iterator it = lights.begin(); it != lights.end(); ++it) {
+
+			lRec = EmitterQueryRecord(p);
 
 			// Query the current emitter
 			Emitter* em = *it;
 			Color3f incRad = em->sample(lRec, Point2f(0.0f));
 
-			// Check if sampled successfully
-			// TODO!
-			
 			// Check for an intersection of the shadow ray on the way to the light
 			Intersection itsSh;
 			if (!scene->rayIntersect(lRec.shadowRay, itsSh)) {
 				// No intersection, point fully visible from emitter
-				// Multiple incident radiance from this light with BSDF and cos, 
-				// add to total exitant radiance.
+				
 
 				// Build BSDFQuery
-				BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(-lRec.wi) , itsM.toLocal(-ray.d), ESolidAngle);
+				BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(-lRec.wi), itsM.toLocal(-ray.d), ESolidAngle);
 				bsdfRec.uv = itsM.uv;
-				// Angle between shading normal and direction to emitter (both normalized)
+				// Angle between shading normal and direction to emitter
 				float theta = acos(n.dot(lRec.shadowRay.d) / (n.norm() * lRec.shadowRay.d.norm()));
-				exRad = exRad + (incRad) * objBSDF->eval(bsdfRec) * abs(cos(theta));
+				// Compute addition of this emitter to the whole incoming (Radiance / pdf) (brdf * emition in sample direction * cos(theta))
+				sumIncRad = sumIncRad + (incRad)* objBSDF->eval(bsdfRec) * abs(cos(theta));
 
 			}
 			// Else: Collision with an object, in shadow from this emitter. Add nothing
 			// to exitant radiance.
+		}
+
+		// Add emitted radiance from this mesh (if emitter)
+		exRad = sumIncRad;
+		if (itsM.mesh->isEmitter) {
+			lRec = EmitterQueryRecord(p);
+			// Add only value evaluated at this emitter-object (and not divided by pdf as in Emitter::sample())
+			exRad += itsM.mesh->getEmitter()->eval(lRec);
 		}
 
 		return exRad;
@@ -67,11 +75,11 @@ public:
 	}
 
 	std::string toString() const {
-		return "Direct[]";
+		return "Direct_EMS[]";
 	}
 protected:
 	float rayLength;
 };
 
-NORI_REGISTER_CLASS(DirectIntegrator, "direct");
+NORI_REGISTER_CLASS(DirectIntegrator, "direct_ems");
 NORI_NAMESPACE_END

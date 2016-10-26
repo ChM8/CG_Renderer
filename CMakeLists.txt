@@ -79,6 +79,7 @@ add_executable(nori
   src/av.cpp
   src/pointlight.cpp
   src/direct.cpp
+  src/direct_ems.cpp
 )
 
 # The following lines build the warping test application
