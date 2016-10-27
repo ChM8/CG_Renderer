@@ -5,9 +5,9 @@
 
 NORI_NAMESPACE_BEGIN
 
-class DirectIntegrator : public Integrator {
+class DirectEMSIntegrator : public Integrator {
 public:
-	DirectIntegrator(const PropertyList &props) {
+	DirectEMSIntegrator(const PropertyList &props) {
 		/* No parameters this time */
 	}
 
@@ -41,14 +41,16 @@ public:
 
 			// Query the current emitter
 			Emitter* em = *it;
-			Color3f incRad = em->sample(lRec, Point2f(0.0f));
 
 			// Check for an intersection of the shadow ray on the way to the light
 			Intersection itsSh;
 			if (!scene->rayIntersect(lRec.shadowRay, itsSh)) {
 				// No intersection, point fully visible from emitter
-				
 
+				// Get a random sample
+				Point2f sample = Point2f(0.5f, 0.5f);
+				Color3f incRad = em->sample(lRec, sample);
+				
 				// Build BSDFQuery
 				BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(-lRec.wi), itsM.toLocal(-ray.d), ESolidAngle);
 				bsdfRec.uv = itsM.uv;
@@ -64,7 +66,7 @@ public:
 
 		// Add emitted radiance from this mesh (if emitter)
 		exRad = sumIncRad;
-		if (itsM.mesh->isEmitter) {
+		if (itsM.mesh->isEmitter()) {
 			lRec = EmitterQueryRecord(p);
 			// Add only value evaluated at this emitter-object (and not divided by pdf as in Emitter::sample())
 			exRad += itsM.mesh->getEmitter()->eval(lRec);
@@ -81,5 +83,5 @@ protected:
 	float rayLength;
 };
 
-NORI_REGISTER_CLASS(DirectIntegrator, "direct_ems");
+NORI_REGISTER_CLASS(DirectEMSIntegrator, "direct_ems");
 NORI_NAMESPACE_END

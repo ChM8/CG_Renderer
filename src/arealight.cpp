@@ -36,25 +36,52 @@ public:
                 m_radiance.toString());
     }
 
-    virtual Color3f eval(const EmitterQueryRecord & lRec) const override {
+    virtual Color3f eval(const EmitterQueryRecord &lRec) const override {
         if(!m_shape)
             throw NoriException("There is no shape attached to this Area light!");
 
-        throw NoriException("To implement...");
+		// Check if the intersected on positive side of surface
+		if (lRec.n.dot(lRec.ref - lRec.p) >= 0.0f) {
+			return m_radiance;
+		}
+		else {
+			return Color3f(0.0f);
+		}
+
     }
 
     virtual Color3f sample(EmitterQueryRecord & lRec, const Point2f & sample) const override {
         if(!m_shape)
             throw NoriException("There is no shape attached to this Area light!");
 
-        throw NoriException("To implement...");
+		// Sample a point on the emitter shape (get normals, pdf, ...)
+		ShapeQueryRecord sRec = ShapeQueryRecord(lRec.ref);
+		m_shape->sampleSurface(sRec, sample);
+		lRec.p = sRec.p;
+
+		// Compute distance and (normalized) vector from light to sampler position.
+		Vector3f diff = (sRec.p - lRec.ref);
+		float dis = diff.norm();
+		diff.normalize();
+		// ShadowRay (vector from ref to emitter)
+		Ray3f sRay = Ray3f(lRec.ref, diff, 0.0001f, dis);
+
+		// Set some fields of the EmitterQueryRecord
+		lRec.n = sRec.n;
+		lRec.pdf = sRec.pdf;
+		lRec.shadowRay = sRay;
+		lRec.wi = -diff;
+
+		return eval(lRec) / lRec.pdf;
+        
     }
 
     virtual float pdf(const EmitterQueryRecord &lRec) const override {
         if(!m_shape)
             throw NoriException("There is no shape attached to this Area light!");
 
-        throw NoriException("To implement...");
+		// Get the probability from the shape of the emitter.
+		return m_shape->pdfSurface(lRec.p);
     }
 
 
