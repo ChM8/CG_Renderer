@@ -73,7 +73,7 @@ public:
 		lRec.shadowRay = sRay;
 		lRec.wi = -diff;
 
-		return eval(lRec) / lRec.pdf;
+		return eval(lRec) / pdf(lRec);
         
     }
 
@@ -82,12 +82,13 @@ public:
             throw NoriException("There is no shape attached to this Area light!");
 
 		// Get the probability from the shape of the emitter. (If valid hit, i.e. on front-side)
-		if (lRec.n.dot(lRec.wi) >= 0.0f) {
-			return m_shape->pdfSurface(lRec.p);
-		}
+		//if (lRec.n.dot(lRec.wi) >= 0.0f) {
+			float cosTh = (lRec.ref - lRec.p).normalized().dot(lRec.n);
+			return (lRec.ref-lRec.p).norm() * lRec.pdf / cosTh;
+		/*}
 		else {
 			return 0.0f;
-		}
+		}*/
     }
 
 

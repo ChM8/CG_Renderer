@@ -42,8 +42,8 @@ public:
 			// Query the current emitter
 			Emitter* em = *it;
 
-			// Get a random sample (TODO: randomize)
-			Point2f sample = Point2f(0.99f, 0.99f);
+			// Get a random sample
+			Point2f sample = Point2f((((float)rand()) / RAND_MAX), (((float)rand()) / RAND_MAX));
 			Color3f incRad = em->sample(lRec, sample);
 
 			// Check for an intersection of the shadow ray on the way to the light
@@ -61,9 +61,6 @@ public:
 				// Compute addition of this emitter to the whole incoming (Radiance / pdf) (brdf * emition in sample direction * cos(theta))
 				sumIncRad = sumIncRad + (incRad) * objBSDF->eval(bsdfRec) * abs(cos(theta));
 
-			}
-			else if (itsSh.mesh->isEmitter()){
-				printf("Collision with emitter");
 			}
 			// Else: Collision with an object, in shadow from this emitter. Add nothing
 			// to exitant radiance.
