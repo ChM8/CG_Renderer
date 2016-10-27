@@ -42,14 +42,16 @@ public:
 			// Query the current emitter
 			Emitter* em = *it;
 
+			// Get a random sample (TODO: randomize)
+			Point2f sample = Point2f(0.99f, 0.99f);
+			Color3f incRad = em->sample(lRec, sample);
+
 			// Check for an intersection of the shadow ray on the way to the light
 			Intersection itsSh;
-			if (!scene->rayIntersect(lRec.shadowRay, itsSh)) {
+			scene->rayIntersect(lRec.shadowRay, itsSh);
+			// Ensure that the collision is not caused by the emitter itself (only the area between)
+			if (lRec.shadowRay.maxt - itsSh.t <= 0.00001f) {
 				// No intersection, point fully visible from emitter
-
-				// Get a random sample
-				Point2f sample = Point2f(0.5f, 0.5f);
-				Color3f incRad = em->sample(lRec, sample);
 				
 				// Build BSDFQuery
 				BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(-lRec.wi), itsM.toLocal(-ray.d), ESolidAngle);
@@ -57,8 +59,11 @@ public:
 				// Angle between shading normal and direction to emitter
 				float theta = acos(n.dot(lRec.shadowRay.d) / (n.norm() * lRec.shadowRay.d.norm()));
 				// Compute addition of this emitter to the whole incoming (Radiance / pdf) (brdf * emition in sample direction * cos(theta))
-				sumIncRad = sumIncRad + (incRad)* objBSDF->eval(bsdfRec) * abs(cos(theta));
+				sumIncRad = sumIncRad + (incRad) * objBSDF->eval(bsdfRec) * abs(cos(theta));
 
+			}
+			else if (itsSh.mesh->isEmitter()){
+				printf("Collision with emitter");
 			}
 			// Else: Collision with an object, in shadow from this emitter. Add nothing
 			// to exitant radiance.

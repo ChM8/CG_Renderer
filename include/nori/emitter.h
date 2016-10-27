@@ -35,7 +35,7 @@ struct EmitterQueryRecord {
     Point3f p;
     /// Normal at the emitter point
     Normal3f n;
-    /// Direction between the hit point and the emitter point
+    /// Direction between the hit point and the emitter point (used here as (ref-p).normalized() )
     Vector3f wi;
     /// Probability
     float pdf;

@@ -40,7 +40,8 @@ public:
         if(!m_shape)
             throw NoriException("There is no shape attached to this Area light!");
 
-		// Check if the intersected on positive side of surface
+		// Check if 'ref'-point lies on positive side of emitter-surface (use vector
+		// from 'ref' to intersection point)
 		if (lRec.n.dot(lRec.ref - lRec.p) >= 0.0f) {
 			return m_radiance;
 		}
@@ -80,8 +81,13 @@ public:
         if(!m_shape)
             throw NoriException("There is no shape attached to this Area light!");
 
-		// Get the probability from the shape of the emitter.
-		return m_shape->pdfSurface(lRec.p);
+		// Get the probability from the shape of the emitter. (If valid hit, i.e. on front-side)
+		if (lRec.n.dot(lRec.wi) >= 0.0f) {
+			return m_shape->pdfSurface(lRec.p);
+		}
+		else {
+			return 0.0f;
+		}
     }
 
 
