@@ -57,9 +57,10 @@ public:
 				BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(-lRec.wi), itsM.toLocal(-ray.d), ESolidAngle);
 				bsdfRec.uv = itsM.uv;
 				// Angle between shading normal and direction to emitter
-				float theta = acos(n.dot(lRec.shadowRay.d) / (n.norm() * lRec.shadowRay.d.norm()));
+				float cosThetaIn = n.dot(lRec.shadowRay.d) / (n.norm() * lRec.shadowRay.d.norm());
+				float cosThetaOut = lRec.n.dot(lRec.shadowRay.d) / (lRec.n.norm() * lRec.shadowRay.d.norm());
 				// Compute addition of this emitter to the whole incoming (Radiance / pdf) (brdf * emition in sample direction * cos(theta))
-				sumIncRad = sumIncRad + (incRad) * objBSDF->eval(bsdfRec) * abs(cos(theta));
+				sumIncRad = sumIncRad + (incRad) * objBSDF->eval(bsdfRec) * abs(cosThetaIn) * cosThetaOut / (lRec.ref - lRec.p).norm() * (lRec.ref - lRec.p).norm();
 
 			}
 			// Else: Collision with an object, in shadow from this emitter. Add nothing
