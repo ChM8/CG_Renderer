@@ -51,7 +51,7 @@ public:
 				// add to total exitant radiance.
 
 				// Build BSDFQuery
-				BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(-lRec.wi) , itsM.toLocal(-ray.d), ESolidAngle);
+				BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(lRec.wi) , itsM.toLocal(-ray.d), ESolidAngle);
 				bsdfRec.uv = itsM.uv;
 				// Angle between shading normal and direction to emitter (both normalized)
 				float theta = acos(n.dot(lRec.shadowRay.d) / (n.norm() * lRec.shadowRay.d.norm()));

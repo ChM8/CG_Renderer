@@ -42,7 +42,7 @@ public:
 
 		// Check if 'ref'-point lies on positive side of emitter-surface (use vector
 		// from to intersection point to emitter)
-		if (lRec.n.dot(lRec.p - lRec.ref) >= 0.0f) {
+		if (lRec.n.dot(lRec.ref - lRec.p) >= 0.0f) {
 			return m_radiance;
 		}
 		else {
@@ -51,14 +51,19 @@ public:
 
     }
 
-    virtual Color3f sample(EmitterQueryRecord & lRec, const Point2f & sample) const override {
-        if(!m_shape)
-            throw NoriException("There is no shape attached to this Area light!");
+	virtual Color3f sample(EmitterQueryRecord & lRec, const Point2f & sample) const override {
+		if (!m_shape)
+			throw NoriException("There is no shape attached to this Area light!");
 
 		// Sample a point on the emitter shape (get normals, pdf, ...)
 		ShapeQueryRecord sRec = ShapeQueryRecord(lRec.ref);
 		m_shape->sampleSurface(sRec, sample);
 		lRec.p = sRec.p;
+
+		if (lRec.n.dot(lRec.p - lRec.ref) < 0.0f) {
+			printf("Backside!\n");
+			return Color3f(0.0f);
+		}
 
 		// Compute distance and (normalized) vector from light to sampler position.
 		Vector3f diff = (sRec.p - lRec.ref);
@@ -71,9 +76,11 @@ public:
 		lRec.n = sRec.n;
 		lRec.pdf = sRec.pdf;
 		lRec.shadowRay = sRay;
-		lRec.wi = -diff;
+		lRec.wi = diff;
 
+		//return 0.25f;
 		return eval(lRec) / pdf(lRec);
+
         
     }
 

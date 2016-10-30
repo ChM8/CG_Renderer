@@ -36,7 +36,7 @@ public:
 		lRec.n = Normal3f(nEm);
 		lRec.pdf = pdf(lRec);
 		lRec.shadowRay = sRay;
-		lRec.wi = -diff;
+		lRec.wi = diff;
 
 		return eval(lRec)/pdf(lRec);
 

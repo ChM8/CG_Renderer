@@ -6,9 +6,9 @@
 
 NORI_NAMESPACE_BEGIN
 
-class DirectEMSIntegrator : public Integrator {
+class DirectMatsIntegrator : public Integrator {
 public:
-	DirectEMSIntegrator(const PropertyList &props) {
+	DirectMatsIntegrator(const PropertyList &props) {
 		/* No parameters this time */
 	}
 
@@ -28,6 +28,10 @@ public:
 		Point3f p = itsM.p;
 		Normal3f n = itsM.shFrame.n;
 		const BSDF * objBSDF = itsM.mesh->getBSDF();
+
+		// TODO
+		// Sample according to the pdf of the brdf of this shape's surface
+
 
 		// Iterate over all lights in the scene and get the incoming, direct radiance
 		std::vector<Emitter *> lights = scene->getLights();
@@ -55,7 +59,7 @@ public:
 
 			if (!bColl || bCurrEmitterIntersect) {
 				// No intersection, point fully visible from emitter
-				
+
 				// Build BSDFQuery
 				BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(lRec.wi), itsM.toLocal(-ray.d), ESolidAngle);
 				bsdfRec.uv = itsM.uv;
@@ -95,11 +99,11 @@ public:
 	}
 
 	std::string toString() const {
-		return "Direct_EMS[]";
+		return "Direct_Mats[]";
 	}
 protected:
 	float rayLength;
 };
 
-NORI_REGISTER_CLASS(DirectEMSIntegrator, "direct_ems");
+NORI_REGISTER_CLASS(DirectMatsIntegrator, "direct_mats");
 NORI_NAMESPACE_END
