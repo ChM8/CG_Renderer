@@ -29,63 +29,49 @@ public:
 		Normal3f n = itsM.shFrame.n;
 		const BSDF * objBSDF = itsM.mesh->getBSDF();
 
-		// TODO
 		// Sample according to the pdf of the brdf of this shape's surface
+		// Build BSDFQuery
+		BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(-ray.d));
+		bsdfRec.uv = itsM.uv;
+		// sample
+		Color3f bsdfRes = objBSDF->sample(bsdfRec, sampler->next2D());
+		Ray3f sampleRay = Ray3f(p, bsdfRec.wo);
 
-
-		// Iterate over all lights in the scene and get the incoming, direct radiance
-		std::vector<Emitter *> lights = scene->getLights();
-
-		// Prepare the EmitterQueryRecord (same 'ref' for all)
-		EmitterQueryRecord lRec;
+		// Prepare a variable for the total 
 		Color3f sumIncRad = Color3f(0.0f);
 
-		for (std::vector<Emitter *>::iterator it = lights.begin(); it != lights.end(); ++it) {
+		// Check for an intersection of the the ray in the sampled direction (from BSDF)
+		Intersection itsSh;
 
-			lRec = EmitterQueryRecord(p);
+		if (scene->rayIntersect(sampleRay, itsSh)) {
+			// Intersection of the sampling ray - check if it is an emitter
 
-			// Query the current emitter
-			Emitter* em = *it;
+			if (itsSh.mesh->isEmitter()) {
+				// Compute contribution of this emitter
+				EmitterQueryRecord lRec = EmitterQueryRecord(p, itsSh.p, itsSh.shFrame.n);
+				Color3f incRad = itsSh.mesh->getEmitter()->eval(lRec);
 
-			// Get a random sample
-			Point2f sample = sampler->next2D();
-			Color3f incRad = em->sample(lRec, sample);
-
-			// Check for an intersection of the shadow ray on the way to the light
-			Intersection itsSh;
-			bool bColl = scene->rayIntersect(lRec.shadowRay, itsSh);
-			// Ensure that the collision is not caused by the emitter itself (only the area between)
-			bool bCurrEmitterIntersect = bColl && (lRec.shadowRay.maxt - itsSh.t <= 0.0001f);
-
-			if (!bColl || bCurrEmitterIntersect) {
-				// No intersection, point fully visible from emitter
-
-				// Build BSDFQuery
-				BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(lRec.wi), itsM.toLocal(-ray.d), ESolidAngle);
-				bsdfRec.uv = itsM.uv;
 				// Angle between shading normal and direction to emitter
-				float cosThetaIn = n.dot(lRec.wi) / (n.norm() * lRec.wi.norm());
-				float cosThetaOut = lRec.n.dot(-lRec.shadowRay.d) / (lRec.n.norm() * lRec.shadowRay.d.norm());
-				if (cosThetaIn >= 0 && cosThetaOut >= 0) {
+				float cosThetaIn = n.dot(bsdfRec.wo) / (n.norm() * bsdfRec.wo.norm());
+
+				if (cosThetaIn >= 0) {
 					// Compute addition of the incoming radiance of this emitter
-					float dis = (lRec.ref - lRec.p).norm();
-					Color3f bsdfRes = objBSDF->eval(bsdfRec);
-					Color3f addRad = (incRad * bsdfRes * cosThetaIn * cosThetaOut) / (dis * dis);
+					Color3f addRad = (incRad * bsdfRes * cosThetaIn);
 					sumIncRad += addRad;
 					if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
 						printf("Negative radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
 					}
 				}
-				// Else: Emitter-Sample not directly visible, add nothing
-			}
-			// Else: Collision with an object, in shadow from this emitter. Add nothing
-			// to exitant radiance.
-		}
 
+			}
+			// else: Not an emitter. Since no indirect illumination is computed, no light received.
+		}
+		// else: No collision in sample direction. No light received from this direction.
+		
 		// Add emitted radiance from this mesh (if emitter)
 		exRad = sumIncRad;
 		if (itsM.mesh->isEmitter()) {
-			lRec = EmitterQueryRecord(p);
+			EmitterQueryRecord lRec = EmitterQueryRecord(p);
 			// Add only value evaluated at this emitter-object (and not divided by pdf as in Emitter::sample())
 			exRad += itsM.mesh->getEmitter()->eval(lRec);
 		}

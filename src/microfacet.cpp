@@ -19,6 +19,7 @@
 #include <nori/bsdf.h>
 #include <nori/frame.h>
 #include <nori/warp.h>
+#include <nori/common.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -82,7 +83,19 @@ public:
 
     /// Evaluate the BRDF for the given pair of directions
     virtual Color3f eval(const BSDFQueryRecord &bRec) const override {
-    	throw NoriException("MicrofacetBRDF::eval(): not implemented!");
+    	
+		Vector3f halfV = (bRec.wi + bRec.wo) / (bRec.wi + bRec.wo).norm();
+
+		Color3f diffPart = m_kd / M_PI;
+
+		float cThIn = Frame::cosTheta(bRec.wi);
+		float cThOut = Frame::cosTheta(bRec.wo);
+
+		Color3f temp = m_ks * (evalBeckmann(halfV) * fresnel((halfV.dot(bRec.wi)), m_extIOR, m_intIOR) * (smithBeckmannG1(bRec.wi, halfV) * smithBeckmannG1(bRec.wo, halfV)));
+		Color3f dielPart = temp / (4 * cThIn * cThOut);
+
+		return (diffPart + dielPart);
+
     }
 
     /// Evaluate the sampling density of \ref sample() wrt. solid angles
