@@ -29,57 +29,50 @@ public:
 		Normal3f n = itsM.shFrame.n;
 		const BSDF * objBSDF = itsM.mesh->getBSDF();
 
-		// Iterate over all lights in the scene and get the incoming, direct radiance
-		std::vector<Emitter *> lights = scene->getLights();
+		// Get a random emitter in the scene
+		const Emitter* light = scene->getRandomEmitter(sampler->next1D());
+		float pdfLight = 1.f / (scene->getLights()).size();
 
 		// Prepare the EmitterQueryRecord (same 'ref' for all)
 		EmitterQueryRecord lRec;
-		Color3f sumIncRad = Color3f(0.0f);
+		lRec = EmitterQueryRecord(p);
 
-		for (std::vector<Emitter *>::iterator it = lights.begin(); it != lights.end(); ++it) {
+		// Get a random sample
+		Point2f sample = sampler->next2D();
+		Color3f incRad = light->sample(lRec, sample);
 
-			lRec = EmitterQueryRecord(p);
+		// Check for an intersection of the shadow ray on the way to the light
+		Intersection itsSh;
+		bool bColl = scene->rayIntersect(lRec.shadowRay, itsSh);
+		// Ensure that the collision is not caused by the emitter itself (only the area between)
+		bool bEmitterIntersect = bColl && (lRec.shadowRay.maxt - itsSh.t <= 0.0001f);
 
-			// Query the current emitter
-			Emitter* em = *it;
-
-			// Get a random sample
-			Point2f sample = sampler->next2D();
-			Color3f incRad = em->sample(lRec, sample);
-
-			// Check for an intersection of the shadow ray on the way to the light
-			Intersection itsSh;
-			bool bColl = scene->rayIntersect(lRec.shadowRay, itsSh);
-			// Ensure that the collision is not caused by the emitter itself (only the area between)
-			bool bCurrEmitterIntersect = bColl && (lRec.shadowRay.maxt - itsSh.t <= 0.0001f);
-
-			if (!bColl || bCurrEmitterIntersect) {
-				// No intersection, point fully visible from emitter
+		if (!bColl || bEmitterIntersect) {
+			// No intersection, point fully visible from emitter
 				
-				// Build BSDFQuery
-				BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(lRec.wi), itsM.toLocal(-ray.d), ESolidAngle);
-				bsdfRec.uv = itsM.uv;
-				// Angle between shading normal and direction to emitter
-				float cosThetaIn = n.dot(lRec.wi) / (n.norm() * lRec.wi.norm());
-				float cosThetaOut = lRec.n.dot(-lRec.shadowRay.d) / (lRec.n.norm() * lRec.shadowRay.d.norm());
-				if (cosThetaIn >= 0 && cosThetaOut >= 0) {
-					// Compute addition of the incoming radiance of this emitter
-					float dis = (lRec.ref - lRec.p).norm();
-					Color3f bsdfRes = objBSDF->eval(bsdfRec);
-					Color3f addRad = (incRad * bsdfRes * cosThetaIn * cosThetaOut) / (dis * dis);
-					sumIncRad += addRad;
-					if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
-						printf("Negative radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
-					}
+			// Build BSDFQuery
+			BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(lRec.wi), itsM.toLocal(-ray.d), ESolidAngle);
+			bsdfRec.uv = itsM.uv;
+			// Angle between shading normal and direction to emitter
+			float cosThetaIn = n.dot(lRec.wi) / (n.norm() * lRec.wi.norm());
+			float cosThetaOut = lRec.n.dot(-lRec.shadowRay.d) / (lRec.n.norm() * lRec.shadowRay.d.norm());
+			if (cosThetaIn >= 0 && cosThetaOut >= 0) {
+				// Compute addition of the incoming radiance of this emitter
+				float dis = (lRec.ref - lRec.p).norm();
+				Color3f bsdfRes = objBSDF->eval(bsdfRec);
+				Color3f addRad = (incRad * bsdfRes * cosThetaIn * cosThetaOut) / (dis * dis);
+				// Adjust result by probability of choosing this specific emitter (uniform here)
+				exRad += addRad / pdfLight;
+				if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
+					printf("Negative radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
 				}
-				// Else: Emitter-Sample not directly visible, add nothing
 			}
-			// Else: Collision with an object, in shadow from this emitter. Add nothing
-			// to exitant radiance.
+			// Else: Emitter-Sample not directly visible, add nothing
 		}
+		// Else: Collision with an object, in shadow from this emitter. Add nothing
+		// to exitant radiance
 
 		// Add emitted radiance from this mesh (if emitter)
-		exRad = sumIncRad;
 		if (itsM.mesh->isEmitter()) {
 			lRec = EmitterQueryRecord(p);
 			// Add only value evaluated at this emitter-object (and not divided by pdf as in Emitter::sample())
