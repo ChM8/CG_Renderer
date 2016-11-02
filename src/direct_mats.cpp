@@ -30,6 +30,7 @@ public:
 		const BSDF * objBSDF = itsM.mesh->getBSDF();
 
 		// Sample according to the pdf of the brdf of this shape's surface
+		// TODO: Check why wo is set in diffuse! If wrong (wi should be set instead), change wi to wo here!
 		// Build BSDFQuery
 		BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(-ray.d));
 		bsdfRec.uv = itsM.uv;
@@ -55,7 +56,7 @@ public:
 				float cosThetaIn = n.dot(bsdfRec.wo) / (n.norm() * bsdfRec.wo.norm());
 
 				if (cosThetaIn >= 0) {
-					// Compute addition of the incoming radiance of this emitter
+					// Compute addition of the incoming radiance of this emitter (already divided by pdf in bsdf->sample())
 					Color3f addRad = (incRad * bsdfRes * cosThetaIn);
 					sumIncRad += addRad;
 					if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {

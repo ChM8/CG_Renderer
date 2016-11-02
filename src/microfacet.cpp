@@ -86,12 +86,12 @@ public:
     	
 		Vector3f halfV = (bRec.wi + bRec.wo) / (bRec.wi + bRec.wo).norm();
 
-		Color3f diffPart = m_kd / M_PI;
+		Color3f diffPart = (m_kd) / M_PI;
 
-		float cThIn = Frame::cosTheta(bRec.wi);
-		float cThOut = Frame::cosTheta(bRec.wo);
+		float cThIn = Frame::cosTheta(bRec.wo);
+		float cThOut = Frame::cosTheta(bRec.wi);
 
-		Color3f temp = m_ks * (evalBeckmann(halfV) * fresnel((halfV.dot(bRec.wi)), m_extIOR, m_intIOR) * (smithBeckmannG1(bRec.wi, halfV) * smithBeckmannG1(bRec.wo, halfV)));
+		Color3f temp = m_ks * (evalBeckmann(halfV) * fresnel((halfV.dot(bRec.wo)), m_extIOR, m_intIOR) * (smithBeckmannG1(bRec.wo, halfV) * smithBeckmannG1(bRec.wi, halfV)));
 		Color3f dielPart = temp / (4 * cThIn * cThOut);
 
 		return (diffPart + dielPart);
@@ -100,12 +100,75 @@ public:
 
     /// Evaluate the sampling density of \ref sample() wrt. solid angles
     virtual float pdf(const BSDFQueryRecord &bRec) const override {
-    	throw NoriException("MicrofacetBRDF::pdf(): not implemented!");
+		if (bRec.measure != ESolidAngle
+			|| Frame::cosTheta(bRec.wi) <= 0
+			|| Frame::cosTheta(bRec.wo) <= 0)
+			return 0.0f;
+
+		// Return the combined pdf of diffuse/microfacet
+		// TODO: Check why wo is set in diffuse.cpp! If wrong (wi should be set instead), change wi to wo here!
+
+		// Half-Vector
+		Vector3f wh = (bRec.wi + bRec.wo) / (bRec.wi + bRec.wo).norm();
+		// Pdf microfacet weighted by ks, adjusted with jacobian
+		float pm = (m_ks * evalBeckmann(wh) * Frame::cosTheta(wh)) / (4.f * wh.dot(bRec.wi));
+		// Pdf diffuse part
+		float pd = (1 - m_ks) * (Frame::cosTheta(bRec.wi)) * INV_PI;
+
+		return pm + pd;
+
     }
 
     /// Sample the BRDF
     virtual Color3f sample(BSDFQueryRecord &bRec, const Point2f &_sample) const override {
-    	throw NoriException("MicrofacetBRDF::sample(): not implemented!");
+		if (Frame::cosTheta(bRec.wi) <= 0)
+			return Color3f(0.0f);
+
+		bRec.measure = ESolidAngle;
+
+		// TODO: Check why wo is set in diffuse.cpp! If wrong (wi should be set instead), change wi to wo here!
+
+		// Check sample-number to determine if specular or diffuse
+		if (_sample.x() < m_ks) {
+			// Correct sample.x
+			Point2f sample = Point2f(_sample.x() * (1 / m_ks), _sample.y());
+
+			// sample microfacet
+			// Get a half-vector direction matching the beckmann distribution (for sampling
+			Vector3f wh = Warp::squareToBeckmann(sample, m_alpha);
+
+			// Mirror the outgoing vector on the half-vector to receive the incoming direction
+			bRec.wo = (2.f * wh.dot(bRec.wi) * wh) - bRec.wo;
+
+			// Check if direction above/below surface
+			if (Frame::cosTheta(bRec.wo) <= 0) {
+				// Below surface - reject sample by returning 0
+				return Color3f(0.0f);
+			}
+
+		}
+		else {
+			// Correct sample.x
+			Point2f sample = Point2f(_sample.x() * (1 / m_ks) - m_ks, _sample.y());
+
+			// sample diffuse (same as in diffuse.cpp)
+			/* Warp a uniformly distributed sample on [0,1]^2
+			to a direction on a cosine-weighted hemisphere */
+			bRec.wo = Warp::squareToCosineHemisphere(sample);
+
+			/* Relative index of refraction: no change */
+			bRec.eta = 1.0f;
+		}
+
+		// Return brdf
+		float pdfS = pdf(bRec);
+		float cT = Frame::cosTheta(bRec.wi);
+		if (pdfS >= 0.0f && cT >= 0.0f) {
+			return eval(bRec) / pdfS; //* cT;
+		}
+		else {
+			return Color3f(0.0f);
+		}
     }
 
     virtual std::string toString() const override {
