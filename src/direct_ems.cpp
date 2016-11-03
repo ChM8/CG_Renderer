@@ -31,9 +31,9 @@ public:
 
 		// Get a random emitter in the scene
 		const Emitter* light = scene->getRandomEmitter(sampler->next1D());
-		float pdfLight = 1.f / (scene->getLights()).size();
+		float pdfEmitter = 1.f / (scene->getLights()).size();
 
-		// Prepare the EmitterQueryRecord (same 'ref' for all)
+		// Prepare the EmitterQueryRecord
 		EmitterQueryRecord lRec;
 		lRec = EmitterQueryRecord(p);
 
@@ -55,14 +55,12 @@ public:
 			bsdfRec.uv = itsM.uv;
 			// Angle between shading normal and direction to emitter
 			float cosThetaIn = n.dot(lRec.wi) / (n.norm() * lRec.wi.norm());
-			float cosThetaOut = lRec.n.dot(-lRec.shadowRay.d) / (lRec.n.norm() * lRec.shadowRay.d.norm());
-			if (cosThetaIn >= 0 && cosThetaOut >= 0) {
+			if (cosThetaIn >= 0) {
 				// Compute addition of the incoming radiance of this emitter
-				float dis = (lRec.ref - lRec.p).norm();
 				Color3f bsdfRes = objBSDF->eval(bsdfRec);
-				Color3f addRad = (incRad * bsdfRes * cosThetaIn * cosThetaOut) / (dis * dis);
+				Color3f addRad = (incRad * bsdfRes * cosThetaIn);
 				// Adjust result by probability of choosing this specific emitter (uniform here)
-				exRad += addRad / pdfLight;
+				exRad += addRad / pdfEmitter;
 				if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
 					printf("Negative radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
 				}

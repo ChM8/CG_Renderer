@@ -148,8 +148,8 @@ Vector3f Warp::squareToBeckmann(const Point2f &sample, float alpha) {
 	float phi = 2 * M_PI*sample.y();
 	float th = atan(sqrt(-(alpha*alpha)*log(sample.x())));
 
-	float x = sin(th) * cos(phi);
-	float y = sin(th) * sin(phi);
+	float x = sin(th) * sin(phi);
+	float y = sin(th) * cos(phi);
 	float z = cos(th);
 
 	return Vector3f(x, y, z);

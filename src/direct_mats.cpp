@@ -40,9 +40,6 @@ public:
 		Vector3f woWC = itsM.toWorld(bsdfRec.wo);
 		Ray3f sampleRay = Ray3f(p, woWC);
 
-		// Prepare a variable for the total 
-		Color3f sumIncRad = Color3f(0.0f);
-
 		// Check for an intersection of the the ray in the sampled direction (from BSDF)
 		Intersection itsSh;
 
@@ -60,7 +57,7 @@ public:
 				if (cosThetaIn >= 0) {
 					// Compute addition of the incoming radiance of this emitter (already divided by pdf in bsdf->sample())
 					Color3f addRad = (incRad * bsdfRes * cosThetaIn);
-					sumIncRad += addRad;
+					exRad += addRad;
 					if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
 						printf("Negative radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
 					}
@@ -72,7 +69,6 @@ public:
 		// else: No collision in sample direction. No light received from this direction.
 		
 		// Add emitted radiance from this mesh (if emitter)
-		exRad = sumIncRad;
 		if (itsM.mesh->isEmitter()) {
 			EmitterQueryRecord lRec = EmitterQueryRecord(p);
 			// Add only value evaluated at this emitter-object (and not divided by pdf as in Emitter::sample())

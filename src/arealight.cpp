@@ -60,8 +60,7 @@ public:
 		m_shape->sampleSurface(sRec, sample);
 		lRec.p = sRec.p;
 
-		if (lRec.n.dot(lRec.p - lRec.ref) < 0.0f) {
-			printf("Backside!\n");
+		if (sRec.n.dot(lRec.ref - lRec.p) < 0.0f) {
 			return Color3f(0.0f);
 		}
 
@@ -74,12 +73,23 @@ public:
 
 		// Set some fields of the EmitterQueryRecord
 		lRec.n = sRec.n;
-		lRec.pdf = sRec.pdf;
 		lRec.shadowRay = sRay;
 		lRec.wi = diff;
 
-		//return 0.25f;
-		return eval(lRec) / pdf(lRec);
+		float cT = lRec.n.dot(-lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
+		if (cT >= 0) {
+			lRec.pdf = sRec.pdf * (dis * dis) / cT;
+		}
+		else {
+			lRec.pdf = 0.0f;
+		}
+
+		if (lRec.pdf > 0.0f) {
+			return eval(lRec) / lRec.pdf;
+		}
+		else {
+			return Color3f(0.0f);
+		}
 
         
     }
@@ -88,7 +98,17 @@ public:
         if(!m_shape)
             throw NoriException("There is no shape attached to this Area light!");
 
-		return lRec.pdf;
+		ShapeQueryRecord sRec = ShapeQueryRecord(lRec.ref, lRec.p);
+		m_shape->pdfSurface(sRec);
+
+		float dis = (lRec.p - lRec.ref).norm();
+		float cT = lRec.n.dot(-lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
+		if (cT >= 0) {
+			return sRec.pdf * (dis * dis) / cT;
+		}
+		else {
+			return 0.0f;
+		}
     }
 
 
