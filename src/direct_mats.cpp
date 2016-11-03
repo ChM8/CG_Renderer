@@ -36,7 +36,9 @@ public:
 		bsdfRec.uv = itsM.uv;
 		// sample
 		Color3f bsdfRes = objBSDF->sample(bsdfRec, sampler->next2D());
-		Ray3f sampleRay = Ray3f(p, bsdfRec.wo);
+		// Use the sample direction in world-space for casting a ray
+		Vector3f woWC = itsM.toWorld(bsdfRec.wo);
+		Ray3f sampleRay = Ray3f(p, woWC);
 
 		// Prepare a variable for the total 
 		Color3f sumIncRad = Color3f(0.0f);
@@ -53,7 +55,7 @@ public:
 				Color3f incRad = itsSh.mesh->getEmitter()->eval(lRec);
 
 				// Angle between shading normal and direction to emitter
-				float cosThetaIn = n.dot(bsdfRec.wo) / (n.norm() * bsdfRec.wo.norm());
+				float cosThetaIn = n.dot(woWC) / (n.norm() * woWC.norm());
 
 				if (cosThetaIn >= 0) {
 					// Compute addition of the incoming radiance of this emitter (already divided by pdf in bsdf->sample())

@@ -122,7 +122,7 @@ public:
     /// Sample the BRDF
     virtual Color3f sample(BSDFQueryRecord &bRec, const Point2f &_sample) const override {
 		if (Frame::cosTheta(bRec.wi) <= 0)
-			return Color3f(0.0f);
+			return Color3f(0.0f, 0.0f, 1.0f);
 
 		bRec.measure = ESolidAngle;
 
@@ -143,7 +143,7 @@ public:
 			// Check if direction above/below surface
 			if (Frame::cosTheta(bRec.wo) <= 0) {
 				// Below surface - reject sample by returning 0
-				return Color3f(0.0f);
+				return Color3f(1.0f, 0.0f, 0.0f);
 			}
 
 		}
@@ -167,7 +167,7 @@ public:
 			return (eval(bRec) * cT) / pdfS;
 		}
 		else {
-			return Color3f(0.0f);
+			return Color3f(0.0f, 1.0f, 0.0f);
 		}
     }
 
