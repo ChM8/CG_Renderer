@@ -86,13 +86,13 @@ public:
     	
 		Vector3f halfV = (bRec.wi + bRec.wo) / (bRec.wi + bRec.wo).norm();
 
-		Color3f diffPart = (m_kd) / M_PI;
+		Color3f diffPart = (m_kd) * INV_PI;
 
-		float cThIn = Frame::cosTheta(bRec.wi);
-		float cThOut = Frame::cosTheta(bRec.wo);
+		float cThIn = Frame::cosTheta(bRec.wo);
+		float cThOut = Frame::cosTheta(bRec.wi);
 
-		Color3f temp = m_ks * (evalBeckmann(halfV) * fresnel((halfV.dot(bRec.wi)), m_extIOR, m_intIOR) * (smithBeckmannG1(bRec.wi, halfV) * smithBeckmannG1(bRec.wo, halfV)));
-		Color3f dielPart = temp / (4 * cThIn * cThOut);
+		Color3f temp = m_ks * (evalBeckmann(halfV) * fresnel((halfV.dot(bRec.wo)), m_extIOR, m_intIOR) * (smithBeckmannG1(bRec.wo, halfV) * smithBeckmannG1(bRec.wi, halfV)));
+		Color3f dielPart = temp / (4.f * cThIn * cThOut);
 
 		return (diffPart + dielPart);
 
@@ -111,9 +111,9 @@ public:
 		// Half-Vector
 		Vector3f wh = (bRec.wi + bRec.wo) / (bRec.wi + bRec.wo).norm();
 		// Pdf microfacet weighted by ks, adjusted with jacobian
-		float pm = (m_ks * evalBeckmann(wh) * Frame::cosTheta(wh)) / (4.f * wh.dot(bRec.wo));
+		float pm = (m_ks * evalBeckmann(wh) * Frame::cosTheta(wh)) / (4.f * wh.dot(bRec.wi));
 		// Pdf diffuse part
-		float pd = (1 - m_ks) * (Frame::cosTheta(bRec.wo)) * INV_PI;
+		float pd = (1 - m_ks) * (Frame::cosTheta(bRec.wi)) * INV_PI;
 
 		return pm + pd;
 
@@ -122,7 +122,7 @@ public:
     /// Sample the BRDF
     virtual Color3f sample(BSDFQueryRecord &bRec, const Point2f &_sample) const override {
 		if (Frame::cosTheta(bRec.wi) <= 0)
-			return Color3f(0.0f, 0.0f, 1.0f);
+			return Color3f(0.0f);
 
 		bRec.measure = ESolidAngle;
 
@@ -138,12 +138,12 @@ public:
 			Vector3f wh = Warp::squareToBeckmann(sample, m_alpha);
 
 			// Mirror the outgoing vector on the half-vector to receive the incoming direction
-			bRec.wo = (2.f * wh.dot(bRec.wi) * wh) - bRec.wi;
+			bRec.wo = ((2.f * wh.dot(bRec.wi) * wh) - bRec.wi).normalized();
 
 			// Check if direction above/below surface
 			if (Frame::cosTheta(bRec.wo) <= 0) {
 				// Below surface - reject sample by returning 0
-				return Color3f(1.0f, 0.0f, 0.0f);
+				return Color3f(0.0f);
 			}
 
 		}
@@ -167,7 +167,7 @@ public:
 			return (eval(bRec) * cT) / pdfS;
 		}
 		else {
-			return Color3f(0.0f, 1.0f, 0.0f);
+			return Color3f(0.0f);
 		}
     }
 

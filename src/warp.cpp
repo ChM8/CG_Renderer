@@ -157,9 +157,9 @@ Vector3f Warp::squareToBeckmann(const Point2f &sample, float alpha) {
 
 float Warp::squareToBeckmannPdf(const Vector3f &m, float alpha) {
 	float diff = abs(m.x()*m.x() + m.y()*m.y() + m.z()*m.z() - 1.0f);
-	float th = acos(Vector3f(0, 0, 1).dot(m.normalized()));
+	float cosT = Vector3f(0, 0, 1).dot(m.normalized());
 	if ((diff <= 0.0001f) && (m.z() >= 0)) {
-		return exp(-(tan(th)*tan(th)) / (alpha*alpha)) / (M_PI * alpha * alpha * pow(cos(th), 3));
+		return exp((cosT*cosT - 1.0f) / (alpha*alpha*cosT*cosT)) / (M_PI * alpha * alpha * cosT * cosT * cosT);
 	}
 	else {
 		return 0.0f;
