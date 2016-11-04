@@ -111,9 +111,9 @@ public:
 		// Half-Vector
 		Vector3f wh = (bRec.wi + bRec.wo) / (bRec.wi + bRec.wo).norm();
 		// Pdf microfacet weighted by ks, adjusted with jacobian
-		float pm = (m_ks * evalBeckmann(wh) * Frame::cosTheta(wh)) / (4.f * wh.dot(bRec.wi));
+		float pm = (m_ks * evalBeckmann(wh) * Frame::cosTheta(wh)) / (4.f * abs(wh.dot(bRec.wi)));
 		// Pdf diffuse part
-		float pd = (1 - m_ks) * (Frame::cosTheta(bRec.wi)) * INV_PI;
+		float pd = (1 - m_ks) * (Frame::cosTheta(bRec.wo)) * INV_PI;
 
 		return pm + pd;
 
@@ -131,7 +131,7 @@ public:
 		// Check sample-number to determine if specular or diffuse
 		if (_sample.x() < m_ks) {
 			// Correct sample.x
-			Point2f sample = Point2f(_sample.x() * (1 / m_ks), _sample.y());
+			Point2f sample = Point2f(_sample.x() / m_ks, _sample.y());
 
 			// sample microfacet
 			// Get a half-vector direction matching the beckmann distribution (for sampling
@@ -149,7 +149,7 @@ public:
 		}
 		else {
 			// Correct sample.x
-			Point2f sample = Point2f(_sample.x() * (1 / m_ks) - m_ks, _sample.y());
+			Point2f sample = Point2f((_sample.x() - m_ks) / (1-m_ks), _sample.y());
 
 			// sample diffuse (same as in diffuse.cpp)
 			/* Warp a uniformly distributed sample on [0,1]^2
@@ -162,8 +162,9 @@ public:
 
 		// Return brdf
 		float pdfS = pdf(bRec);
-		float cT = Frame::cosTheta(bRec.wi);
-		if (pdfS >= 0.0f && cT >= 0.0f) {
+		float cT = Frame::cosTheta(bRec.wo);
+
+		if (pdfS > 0.0f && cT >= 0.0f) {
 			return (eval(bRec) * cT) / pdfS;
 		}
 		else {

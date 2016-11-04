@@ -77,7 +77,7 @@ public:
 		lRec.wi = diff;
 
 		float cT = lRec.n.dot(-lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
-		if (cT >= 0) {
+		if (cT > 0) {
 			lRec.pdf = sRec.pdf * (dis * dis) / cT;
 		}
 		else {
@@ -103,7 +103,7 @@ public:
 
 		float dis = (lRec.p - lRec.ref).norm();
 		float cT = lRec.n.dot(-lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
-		if (cT >= 0) {
+		if (cT > 0) {
 			return sRec.pdf * (dis * dis) / cT;
 		}
 		else {

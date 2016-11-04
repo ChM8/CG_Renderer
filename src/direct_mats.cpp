@@ -56,7 +56,7 @@ public:
 
 				if (cosThetaIn >= 0) {
 					// Compute addition of the incoming radiance of this emitter (already divided by pdf in bsdf->sample())
-					Color3f addRad = (incRad * bsdfRes * cosThetaIn);
+					Color3f addRad = (incRad * bsdfRes);//* cosThetaIn);
 					exRad += addRad;
 					if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
 						printf("Negative radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());

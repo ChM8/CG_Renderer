@@ -49,8 +49,16 @@ public:
 		// 2.a Get a random emitter for sampling
 		// Get a random sample
 		const Emitter* em = scene->getRandomEmitter(sample1D);
-		float pdfEmitter = 1.f / (scene->getLights()).size();
+		float pdfEmitterUnif = (1.f / (scene->getLights()).size());
 
+		// Prepare the EmitterQueryRecord
+		EmitterQueryRecord lRec;
+		lRec = EmitterQueryRecord(p);
+
+		// Get a random sample
+		Color3f incRad = em->sample(lRec, sample2D);
+
+		float pdfEmitter = pdfEmitterUnif * lRec.pdf;
 
 		// With all the pdfs, the weights can be computed
 		float wBSDF = pdfBSDF / (pdfBSDF + pdfEmitter);
@@ -73,7 +81,7 @@ public:
 
 				if (cosThetaInBSDF >= 0) {
 					// Compute addition of the incoming radiance of this emitter (already divided by pdf in bsdf->sample())
-					Color3f addRad = (incRad * bsdfResMat * cosThetaInBSDF);
+					Color3f addRad = (incRad * bsdfResMat);// * cosThetaInBSDF);
 					// Adjust by weight
 					exRad += wBSDF * addRad;
 					if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
@@ -88,12 +96,6 @@ public:
 		
 
 		// 2.b Sample the random emitter and add the incoming radiance
-		// Prepare the EmitterQueryRecord
-		EmitterQueryRecord lRec;
-		lRec = EmitterQueryRecord(p);
-
-		// Get a random sample
-		Color3f incRad = em->sample(lRec, sample2D);
 
 		// Check for an intersection of the shadow ray on the way to the light
 		Intersection itsEm;
@@ -114,7 +116,7 @@ public:
 				Color3f bsdfResEm = objBSDF->eval(bsdfRecEm);
 				Color3f addRad = (incRad * bsdfResEm * cosThetaInEm);
 				// Adjust result by probability of choosing this specific emitter (uniform here), adjusted by weight
-				exRad += wEmitter * addRad / pdfEmitter;
+				exRad += wEmitter * addRad / pdfEmitterUnif;
 				if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
 					printf("MIS - Negative emitter radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
 				}
