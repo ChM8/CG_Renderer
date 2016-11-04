@@ -8,3 +8,4 @@ CMakeFiles
 Makefile
 *.cmake
 .idea
+*.exr
