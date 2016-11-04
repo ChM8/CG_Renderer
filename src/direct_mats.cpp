@@ -30,7 +30,6 @@ public:
 		const BSDF * objBSDF = itsM.mesh->getBSDF();
 
 		// Sample according to the pdf of the brdf of this shape's surface
-		// TODO: Check why wo is set in diffuse! If wrong (wi should be set instead), change wi to wo here!
 		// Build BSDFQuery
 		BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(-ray.d));
 		bsdfRec.uv = itsM.uv;
@@ -51,16 +50,12 @@ public:
 				EmitterQueryRecord lRec = EmitterQueryRecord(p, itsSh.p, itsSh.shFrame.n);
 				Color3f incRad = itsSh.mesh->getEmitter()->eval(lRec);
 
-				// Angle between shading normal and direction to emitter
-				float cosThetaIn = n.dot(woWC) / (n.norm() * woWC.norm());
+				// Compute addition of the incoming radiance of this emitter (already divided by pdf in bsdf->sample())
+				Color3f addRad = (incRad.cwiseProduct(bsdfRes));
+				exRad += addRad;
 
-				if (cosThetaIn >= 0) {
-					// Compute addition of the incoming radiance of this emitter (already divided by pdf in bsdf->sample())
-					Color3f addRad = (incRad * bsdfRes);//* cosThetaIn);
-					exRad += addRad;
-					if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
-						printf("Negative radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
-					}
+				if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
+					printf("Negative radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
 				}
 
 			}

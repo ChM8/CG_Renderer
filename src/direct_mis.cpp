@@ -33,8 +33,7 @@ public:
 		const BSDF * objBSDF = itsM.mesh->getBSDF();
 
 
-		// 1.a Sample according to the pdf of the brdf of this shape's surface
-		// TODO: Check why wo is set in diffuse! If wrong (wi should be set instead), change wi to wo here!
+		// 1 Sample according to the pdf of the brdf of this shape's surface
 		// Build BSDFQuery
 		BSDFQueryRecord bsdfRecMat = BSDFQueryRecord(itsM.toLocal(-ray.d));
 		bsdfRecMat.uv = itsM.uv;
@@ -46,7 +45,40 @@ public:
 		float pdfBSDF = objBSDF->pdf(bsdfRecMat);
 		Ray3f sampleRay = Ray3f(p, woWC);
 
-		// 2.a Get a random emitter for sampling
+		// Check for an intersection of the the ray in the sampled direction (from BSDF)
+		Intersection itsBSDF;
+
+		if (scene->rayIntersect(sampleRay, itsBSDF)) {
+			// Intersection of the sampling ray - check if it is an emitter
+
+			if (itsBSDF.mesh->isEmitter()) {
+				// Compute contribution of this emitter
+				EmitterQueryRecord lRecMat = EmitterQueryRecord(p, itsBSDF.p, itsBSDF.shFrame.n);
+				const Emitter* em = itsBSDF.mesh->getEmitter();
+				Color3f incRadMat = em->eval(lRecMat);
+				float pdfEmitter = em->pdf(lRecMat);
+
+				float wBSDF = 0.0f;
+				if (!(pdfBSDF == 0.0f && pdfEmitter == 0.0f)) {
+					wBSDF = pdfBSDF / (pdfBSDF + pdfEmitter);
+				}
+
+				// Compute addition of the incoming radiance of this emitter (already divided by pdf in bsdf->sample())
+				Color3f addRad = (incRadMat.cwiseProduct(bsdfResMat));
+				// Adjust by weight
+				exRad += wBSDF * addRad;
+					
+				if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
+					printf("MIS - Negative brdf sample radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
+				}
+
+			}
+			// else: Not an emitter. Since no indirect illumination is computed, no light received.
+		}
+		// else: No collision in sample direction. No light received from this direction.
+		
+
+		// 2 Get a random emitter for sampling
 		// Get a random sample
 		const Emitter* em = scene->getRandomEmitter(sample1D);
 		float pdfEmitterUnif = (1.f / (scene->getLights()).size());
@@ -58,44 +90,20 @@ public:
 		// Get a random sample
 		Color3f incRad = em->sample(lRec, sample2D);
 
-		float pdfEmitter = pdfEmitterUnif * lRec.pdf;
+		float pdfEmitterEm = pdfEmitterUnif * em->pdf(lRec);
 
-		// With all the pdfs, the weights can be computed
-		float wBSDF = pdfBSDF / (pdfBSDF + pdfEmitter);
-		float wEmitter = pdfEmitter / (pdfBSDF + pdfEmitter);
+		// Also sample the bsdf for the direction of the emitter-sample
+		// Build BSDFQuery
+		BSDFQueryRecord bsdfRecEm = BSDFQueryRecord(itsM.toLocal(-ray.d), itsM.toLocal(lRec.wi), ESolidAngle);
+		bsdfRecEm.uv = itsM.uv;
+		Color3f bsdfResEm = objBSDF->eval(bsdfRecEm);
+		float pdfBSDFEmitter = objBSDF->pdf(bsdfRecEm);
 
-
-		// 1.b Check for an intersection of the the ray in the sampled direction (from BSDF)
-		Intersection itsBSDF;
-
-		if (scene->rayIntersect(sampleRay, itsBSDF)) {
-			// Intersection of the sampling ray - check if it is an emitter
-
-			if (itsBSDF.mesh->isEmitter()) {
-				// Compute contribution of this emitter
-				EmitterQueryRecord lRec = EmitterQueryRecord(p, itsBSDF.p, itsBSDF.shFrame.n);
-				Color3f incRad = itsBSDF.mesh->getEmitter()->eval(lRec);
-
-				// Angle between shading normal and direction to emitter
-				float cosThetaInBSDF = n.dot(woWC) / (n.norm() * woWC.norm());
-
-				if (cosThetaInBSDF >= 0) {
-					// Compute addition of the incoming radiance of this emitter (already divided by pdf in bsdf->sample())
-					Color3f addRad = (incRad * bsdfResMat);// * cosThetaInBSDF);
-					// Adjust by weight
-					exRad += wBSDF * addRad;
-					if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
-						printf("MIS - Negative brdf sample radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
-					}
-				}
-
-			}
-			// else: Not an emitter. Since no indirect illumination is computed, no light received.
+		float wEmitter = 0.0f;
+		if (!(pdfBSDFEmitter == 0.0f && pdfEmitterEm == 0.0f)) {
+			wEmitter = pdfEmitterEm / (pdfBSDFEmitter + pdfEmitterEm);
 		}
-		// else: No collision in sample direction. No light received from this direction.
-		
-
-		// 2.b Sample the random emitter and add the incoming radiance
+		// 2 Sample the random emitter and add the incoming radiance
 
 		// Check for an intersection of the shadow ray on the way to the light
 		Intersection itsEm;
@@ -106,17 +114,14 @@ public:
 		if (!bColl || bEmitterIntersect) {
 			// No intersection, point fully visible from emitter
 
-			// Build BSDFQuery
-			BSDFQueryRecord bsdfRecEm = BSDFQueryRecord(itsM.toLocal(lRec.wi), itsM.toLocal(-ray.d), ESolidAngle);
-			bsdfRecEm.uv = itsM.uv;
 			// Angle between shading normal and direction to emitter
 			float cosThetaInEm = n.dot(lRec.wi) / (n.norm() * lRec.wi.norm());
 			if (cosThetaInEm >= 0) {
 				// Compute addition of the incoming radiance of this emitter
-				Color3f bsdfResEm = objBSDF->eval(bsdfRecEm);
 				Color3f addRad = (incRad * bsdfResEm * cosThetaInEm);
 				// Adjust result by probability of choosing this specific emitter (uniform here), adjusted by weight
-				exRad += wEmitter * addRad / pdfEmitterUnif;
+				exRad += wEmitter * addRad;
+				
 				if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
 					printf("MIS - Negative emitter radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
 				}

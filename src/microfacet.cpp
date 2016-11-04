@@ -106,7 +106,6 @@ public:
 			return 0.0f;
 
 		// Return the combined pdf of diffuse/microfacet
-		// TODO: Check why wo is set in diffuse.cpp! If wrong (wi should be set instead), change wi to wo here!
 
 		// Half-Vector
 		Vector3f wh = (bRec.wi + bRec.wo) / (bRec.wi + bRec.wo).norm();
@@ -125,8 +124,6 @@ public:
 			return Color3f(0.0f);
 
 		bRec.measure = ESolidAngle;
-
-		// TODO: Check why wo is set in diffuse.cpp! If wrong (wi should be set instead), change wi to wo here!
 
 		// Check sample-number to determine if specular or diffuse
 		if (_sample.x() < m_ks) {
