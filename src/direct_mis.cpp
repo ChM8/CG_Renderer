@@ -48,6 +48,8 @@ public:
 		// Check for an intersection of the the ray in the sampled direction (from BSDF)
 		Intersection itsBSDF;
 
+		Color3f addRadBSDF = Color3f(0.0f);
+		float wBSDF = 0.0f;
 		if (scene->rayIntersect(sampleRay, itsBSDF)) {
 			// Intersection of the sampling ray - check if it is an emitter
 
@@ -58,19 +60,16 @@ public:
 				Color3f incRadMat = em->eval(lRecMat);
 				float pdfEmitter = em->pdf(lRecMat);
 
-				float wBSDF = 0.0f;
 				if (!(pdfBSDF == 0.0f && pdfEmitter == 0.0f)) {
 					wBSDF = pdfBSDF / (pdfBSDF + pdfEmitter);
 				}
 
 				// Compute addition of the incoming radiance of this emitter (already divided by pdf in bsdf->sample())
-				Color3f addRad = (incRadMat.cwiseProduct(bsdfResMat));
-				// Adjust by weight
-				exRad += wBSDF * addRad;
+				addRadBSDF = (incRadMat.cwiseProduct(bsdfResMat));
+				// Add this contribution in step 3 further down
+				/* Adjust by weight
+				exRad += wBSDF * addRad;*/
 					
-				if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
-					printf("MIS - Negative brdf sample radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
-				}
 
 			}
 			// else: Not an emitter. Since no indirect illumination is computed, no light received.
@@ -111,6 +110,7 @@ public:
 		// Ensure that the collision is not caused by the emitter itself (only the area between)
 		bool bEmitterIntersect = bColl && (lRec.shadowRay.maxt - itsEm.t <= 0.0001f);
 
+		Color3f addRadEmitter = Color3f(0.0f);
 		if (!bColl || bEmitterIntersect) {
 			// No intersection, point fully visible from emitter
 
@@ -118,13 +118,10 @@ public:
 			float cosThetaInEm = n.dot(lRec.wi) / (n.norm() * lRec.wi.norm());
 			if (cosThetaInEm >= 0) {
 				// Compute addition of the incoming radiance of this emitter
-				Color3f addRad = (incRad * bsdfResEm * cosThetaInEm);
-				// Adjust result by probability of choosing this specific emitter (uniform here), adjusted by weight
-				exRad += wEmitter * addRad;
-				
-				if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
-					printf("MIS - Negative emitter radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
-				}
+				addRadEmitter = (incRad * bsdfResEm * cosThetaInEm);
+				// Add this contribution further down
+				/* Adjust result by probability of choosing this specific emitter (uniform here), adjusted by weight
+				exRad += wEmitter * addRad;*/
 			}
 			// Else: Emitter-Sample not directly visible, add nothing
 		}
@@ -132,7 +129,18 @@ public:
 		// to exitant radiance
 
 
-		// 3. Add emitted radiance from this mesh (if emitter)
+		// 3. Adjust the weights (so that the sum up to 1) and add the radiance from sampling
+		if (wBSDF + wEmitter != 1.0f) {
+			float invFact = (wBSDF + wEmitter);
+			if (invFact != 0.0f) {
+				wBSDF = wBSDF / invFact;
+				wEmitter = wEmitter / invFact;
+			}
+			// Else, (assuming non-negative weights, i.e. pdfs) both weights must be 0. No adjustment needed.
+		}
+		exRad = wBSDF * addRadBSDF + wEmitter * addRadEmitter;
+
+		// 4. Add emitted radiance from this mesh (if emitter)
 		if (itsM.mesh->isEmitter()) {
 			EmitterQueryRecord lRecSelf = EmitterQueryRecord(p);
 			// Add only value evaluated at this emitter-object (and not divided by pdf as in Emitter::sample())
