@@ -118,10 +118,17 @@ public:
         Vector3f q = Warp::squareToUniformSphere(sample);
         sRec.p = m_position + m_radius * q;
         sRec.n = q;
+<<<<<<< HEAD
 		sRec.pdf = std::pow(1.f / m_radius, 2) * Warp::squareToUniformSpherePdf(Vector3f(0.0f, 0.0f, 1.0f));
     }
     virtual float pdfSurface(const ShapeQueryRecord & sRec) const override {
         return std::pow(1.f / m_radius, 2) * Warp::squareToUniformSpherePdf(Vector3f(0.0f, 0.0f, 1.0f));
+=======
+        sRec.pdf = std::pow(1.f/m_radius,2) * Warp::squareToUniformSpherePdf(Vector3f(0.0f,0.0f,1.0f));
+    }
+    virtual float pdfSurface(const ShapeQueryRecord & sRec) const override {
+        return std::pow(1.f/m_radius,2) * Warp::squareToUniformSpherePdf(Vector3f(0.0f,0.0f,1.0f));
+>>>>>>> c08176a639b9e4159d3e44226146f8470cab2fa6
     }
 
 

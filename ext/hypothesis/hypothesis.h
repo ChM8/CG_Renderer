@@ -334,7 +334,7 @@ namespace hypothesis {
 		double alpha = 1.0 - std::pow(1.0 - significanceLevel, 1.0 / numTests);
 
 		bool result = false;
-		if (pval < alpha) {
+		if (pval < alpha || !std::isfinite(pval)) {
 			oss << "***** Rejected ***** the null hypothesis (p-value = " << pval << ", "
 				   "significance level = " << alpha << ")" << std::endl;
 		} else {
