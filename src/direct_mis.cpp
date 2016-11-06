@@ -33,7 +33,7 @@ public:
 		const BSDF * objBSDF = itsM.mesh->getBSDF();
 
 
-		// 1 Sample according to the pdf of the brdf of this shape's surface
+		// 1. Sample according to the pdf of the brdf of this shape's surface
 		// Build BSDFQuery
 		BSDFQueryRecord bsdfRecMat = BSDFQueryRecord(itsM.toLocal(-ray.d));
 		bsdfRecMat.uv = itsM.uv;
@@ -60,7 +60,7 @@ public:
 				Color3f incRadMat = em->eval(lRecMat);
 				float pdfEmitter = em->pdf(lRecMat);
 
-				if (!(pdfBSDF == 0.0f && pdfEmitter == 0.0f)) {
+				if (pdfBSDF != 0.0f || pdfEmitter != 0.0f) {
 					wBSDF = pdfBSDF / (pdfBSDF + pdfEmitter);
 				}
 
@@ -77,45 +77,44 @@ public:
 		// else: No collision in sample direction. No light received from this direction.
 		
 
-		// 2 Get a random emitter for sampling
+		// 2. Get a random emitter for sampling
 		// Get a random sample
 		const Emitter* em = scene->getRandomEmitter(sample1D);
 		float pdfEmitterUnif = (1.f / (scene->getLights()).size());
 
 		// Prepare the EmitterQueryRecord
-		EmitterQueryRecord lRec;
-		lRec = EmitterQueryRecord(p);
+		EmitterQueryRecord lRecEm;
+		lRecEm = EmitterQueryRecord(p);
 
 		// Get a random sample
-		Color3f incRad = em->sample(lRec, sample2D);
-
-		float pdfEmitterEm = pdfEmitterUnif * em->pdf(lRec);
+		Color3f incRad = em->sample(lRecEm, sample2D);
+		float pdfEmitterEm = pdfEmitterUnif * em->pdf(lRecEm);
 
 		// Also sample the bsdf for the direction of the emitter-sample
 		// Build BSDFQuery
-		BSDFQueryRecord bsdfRecEm = BSDFQueryRecord(itsM.toLocal(-ray.d), itsM.toLocal(lRec.wi), ESolidAngle);
+		BSDFQueryRecord bsdfRecEm = BSDFQueryRecord(itsM.toLocal(-ray.d), itsM.toLocal(lRecEm.wi), ESolidAngle);
 		bsdfRecEm.uv = itsM.uv;
 		Color3f bsdfResEm = objBSDF->eval(bsdfRecEm);
 		float pdfBSDFEmitter = objBSDF->pdf(bsdfRecEm);
 
 		float wEmitter = 0.0f;
-		if (!(pdfBSDFEmitter == 0.0f && pdfEmitterEm == 0.0f)) {
+		if (pdfBSDFEmitter != 0.0f || pdfEmitterEm != 0.0f) {
 			wEmitter = pdfEmitterEm / (pdfBSDFEmitter + pdfEmitterEm);
 		}
-		// 2 Sample the random emitter and add the incoming radiance
 
+		// Sample the random emitter and add the incoming radiance
 		// Check for an intersection of the shadow ray on the way to the light
 		Intersection itsEm;
-		bool bColl = scene->rayIntersect(lRec.shadowRay, itsEm);
+		bool bColl = scene->rayIntersect(lRecEm.shadowRay, itsEm);
 		// Ensure that the collision is not caused by the emitter itself (only the area between)
-		bool bEmitterIntersect = bColl && (lRec.shadowRay.maxt - itsEm.t <= 0.0001f);
+		bool bEmitterIntersect = bColl && (lRecEm.shadowRay.maxt - itsEm.t <= 0.0001f);
 
 		Color3f addRadEmitter = Color3f(0.0f);
 		if (!bColl || bEmitterIntersect) {
 			// No intersection, point fully visible from emitter
 
 			// Angle between shading normal and direction to emitter
-			float cosThetaInEm = n.dot(lRec.wi) / (n.norm() * lRec.wi.norm());
+			float cosThetaInEm = n.dot(lRecEm.wi) / (n.norm() * lRecEm.wi.norm());
 			if (cosThetaInEm >= 0) {
 				// Compute addition of the incoming radiance of this emitter
 				addRadEmitter = (incRad * bsdfResEm * cosThetaInEm);
