@@ -43,7 +43,45 @@ public:
     }
 
     virtual Color3f sample(BSDFQueryRecord &bRec, const Point2f &sample) const override {
-        throw NoriException("Unimplemented!");
+		if (Frame::cosTheta(bRec.wi) <= 0)
+			return Color3f(0.0f);
+
+		// Check if reflection or refraction is sampled
+		float frCoeff = fresnel(Frame::cosTheta(bRec.wi), m_extIOR, m_intIOR);
+		bool bRfrac = (sample.x() <= frCoeff);
+
+		if (bRfrac) {
+			// Sampling refraction
+
+			// Compute exitant vector according to Snell's law
+			float relIOR = m_extIOR / m_intIOR; // TODO: Ensure, that intIOR is on side of exitant vector (new medium)
+			Vector3f n = Vector3f(0.f, 0.f, 1.f);
+
+			Vector3f tmp1 = -relIOR * bRec.wi - bRec.wi.z() * n;
+			Vector3f tmp2 = n * sqrt(1 - relIOR * relIOR * (1 - bRec.wi.z()) * (1 - bRec.wi.z()));
+
+			bRec.wo = tmp1 - tmp2;
+			bRec.measure = EDiscrete;
+
+			bRec.eta = m_intIOR;
+
+			return Color3f(1.0f);
+
+		}
+		else {
+			// Sampling reflection
+
+			// Reflection in local coordinates (same as in mirror.cpp)
+			bRec.wo = Vector3f(-bRec.wi.x(), -bRec.wi.y(), bRec.wi.z());
+			bRec.measure = EDiscrete;
+
+			bRec.eta = 1.0f;
+
+			return Color3f(1.0f);
+
+		}
+
+
     }
 
     virtual std::string toString() const override {
