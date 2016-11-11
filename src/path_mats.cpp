@@ -31,6 +31,8 @@ public:
 
 		// Initial Throughput
 		Color3f t = Color3f(1.f);
+		int it = 0;
+		int minIt = 3;
 
 
 		// Sample according to the pdf of the brdf of this shape's surface
@@ -60,38 +62,34 @@ public:
 					Color3f addRad = (incRad.cwiseProduct(bsdfRes));
 					exRad += t.cwiseProduct(addRad);
 
-					if (addRad.x() < 0 || addRad.y() < 0 || addRad.z() < 0) {
-						printf("Negative radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
-					}
 					// Found an emitter. Stop sampling
+					//break;
+				}
+				// Continue with new sample from this position (after playing Russian Roulette)
+				
+				float probSuccess = std::min(t.maxCoeff(), 0.999f);
+
+				if (sampler->next1D() <= probSuccess && it >= minIt) {
 					break;
 				}
-				// else: Not an emitter. Continue with new sample from this position (after playing Russian Roulette)
-				else {
 
-					float probSuccess = std::min(t.maxCoeff(), 0.99f);
+				// If success, adjust throughput
+				t /= probSuccess;
 
-					if (sampler->next1D() <= probSuccess) {
-						break;
-					}
+				// Get a new sample direction from the current bsdf
+				// Build BSDFQuery
+				bsdfRec = BSDFQueryRecord(itsSh.toLocal(-sampleRay.d));
+				bsdfRec.uv = itsSh.uv;
+				objBSDF = itsSh.mesh->getBSDF();
+				// sample
+				bsdfRes = objBSDF->sample(bsdfRec, sampler->next2D());
+				// Use the sample direction in world-space for casting a ray
+				woWC = itsSh.toWorld(bsdfRec.wo);
+				sampleRay = Ray3f(itsSh.p, woWC);
 
-					// If success, adjust throughput
-					t /= probSuccess;
+				// Adjust throughput again. TODO: Check if w_o as sampled direction is correct
+				t *= itsSh.shFrame.n.dot(woWC) * bsdfRes;
 
-					// Get a new sample direction from the current bsdf
-					// Build BSDFQuery
-					bsdfRec = BSDFQueryRecord(itsSh.toLocal(-sampleRay.d));
-					bsdfRec.uv = itsSh.uv;
-					// sample
-					bsdfRes = objBSDF->sample(bsdfRec, sampler->next2D());
-					// Use the sample direction in world-space for casting a ray
-					woWC = itsSh.toWorld(bsdfRec.wo);
-					sampleRay = Ray3f(p, woWC);
-
-					// Adjust throughput again. TODO: Check if wo as sampled direction is correct
-					t *= bsdfRec.wo.z() * bsdfRes;
-
-				}
 
 			}
 			// else: No collision in sample direction. No light received from this direction.

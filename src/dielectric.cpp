@@ -54,7 +54,7 @@ public:
 			// Sampling refraction
 
 			// Compute exitant vector according to Snell's law
-			float relIOR = m_extIOR / m_intIOR; // TODO: Ensure, that intIOR is on side of exitant vector (new medium)
+			float relIOR = m_extIOR / m_intIOR;
 			Vector3f n = Vector3f(0.f, 0.f, 1.f);
 
 			Vector3f tmp1 = -relIOR * bRec.wi - bRec.wi.z() * n;
@@ -63,7 +63,7 @@ public:
 			bRec.wo = tmp1 - tmp2;
 			bRec.measure = EDiscrete;
 
-			bRec.eta = m_intIOR;
+			bRec.eta = m_intIOR / m_extIOR;
 
 			return Color3f(1.0f);
 
