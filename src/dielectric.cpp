@@ -48,22 +48,26 @@ public:
 
 		// Check if reflection or refraction is sampled
 		float frCoeff = fresnel(Frame::cosTheta(bRec.wi), m_extIOR, m_intIOR);
-		bool bRfrac = (sample.x() <= frCoeff);
+		bool bRfrac = (sample.x() < frCoeff);
 
 		if (bRfrac) {
 			// Sampling refraction
 
 			// Compute exitant vector according to Snell's law
 			float relIOR = m_extIOR / m_intIOR;
-			Vector3f n = Vector3f(0.f, 0.f, 1.f);
+			Vector3f n = Vector3f(0.0f, 0.0f, 1.0f);
 
-			Vector3f tmp1 = -relIOR * bRec.wi - bRec.wi.z() * n;
-			Vector3f tmp2 = n * sqrt(1 - relIOR * relIOR * (1 - bRec.wi.z()) * (1 - bRec.wi.z()));
+			Vector3f tmp1 = -relIOR * bRec.wi - (bRec.wi.dot(n) * n);
+			Vector3f tmp2 = n * sqrt(1 - relIOR * relIOR * (1 - bRec.wi.dot(n) * bRec.wi.dot(n)));
 
 			bRec.wo = tmp1 - tmp2;
 			bRec.measure = EDiscrete;
 
-			bRec.eta = m_intIOR / m_extIOR;
+			bRec.eta = relIOR;//m_intIOR / m_extIOR;
+
+			if (isnan(bRec.eta) || bRec.wo.hasNaN()) {
+				printf("Dielectric NAN!\n");
+			}
 
 			return Color3f(1.0f);
 

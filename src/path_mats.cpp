@@ -62,6 +62,14 @@ public:
 					Color3f addRad = (incRad.cwiseProduct(bsdfRes));
 					exRad += t.cwiseProduct(addRad);
 
+					if (t.hasNaN() || addRad.hasNaN()) {
+						printf("t or addRad NAN!\n");
+					}
+
+					if (t.cwiseProduct(addRad).x() <= 0) {
+						printf("negative rad!\n");
+					}
+
 					// Found an emitter. Stop sampling
 					//break;
 				}
@@ -108,8 +116,8 @@ public:
 
 		if (!exRad.isValid()) {
 			printf("Error! Invalid Radiance at %.2f, %.2f, %.2f\n", p.x(), p.y(), p.z());
+			printf("    Exrad: %.2f, %.2f, %.2f\n", exRad.x(), exRad.y(), exRad.z());
 		}
-
 		return exRad;
 
 	}
