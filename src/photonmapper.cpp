@@ -22,6 +22,7 @@
 #include <nori/bsdf.h>
 #include <nori/scene.h>
 #include <nori/photon.h>
+#include <nori/sampler.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -100,6 +101,19 @@ public:
             m_photonRadius
         );
     }
+
+	virtual Photon samplePhoton(const Scene *scene, Sampler *sampler) {
+
+		// Choose a random emitter
+		std::vector<Emitter*> emCont = scene->getLights();
+		float emProb = 1.0f / scene->getLights().size();
+
+
+
+
+	}
+
+
 private:
     int m_photonCount;
     float m_photonRadius;

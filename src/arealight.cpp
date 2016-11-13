@@ -113,7 +113,30 @@ public:
 
 
     virtual Color3f samplePhoton(Ray3f &ray, const Point2f &sample1, const Point2f &sample2) const override {
-        throw NoriException("To implement...");
+        
+
+		// First, sample a point on the mesh (uniformly) - reference is a dummy point
+		ShapeQueryRecord sRec = ShapeQueryRecord(Point3f(0.0f));
+		m_shape->sampleSurface(sRec, sample1);
+
+		// Get a random sample on the hemisphere around the sampled point (looking upwards towards 0,0,1)
+		Vector3f dir = Warp::squareToCosineHemisphere(sample2);
+
+		// Transform the direction to the world coordinates at the sampled point
+		Vector3f sDirWC = Frame(sRec.n).toWorld(dir);
+
+		// Create the photon-ray
+		ray.d = sDirWC;
+		ray.o = sRec.p;
+		ray.mint = FLT_EPSILON;
+		ray.maxt = FLT_MAX;
+
+		// Get the value of the light at the sampled position (with a dummy-reference point)
+		EmitterQueryRecord lRec = EmitterQueryRecord(sRec.p + sDirWC, sRec.p, sRec.n);
+		
+		Color3f exRad = eval(lRec);
+
+		return exRad;
     }
 
 

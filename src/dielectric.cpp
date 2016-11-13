@@ -48,7 +48,7 @@ public:
 
 		// Check if reflection or refraction is sampled
 		float frCoeff = fresnel(Frame::cosTheta(bRec.wi), m_extIOR, m_intIOR);
-		bool bRfrac = (sample.x() < frCoeff);
+		bool bRfrac = (sample.x() >= frCoeff);
 
 		if (bRfrac) {
 			// Sampling refraction
@@ -63,7 +63,7 @@ public:
 			bRec.wo = tmp1 - tmp2;
 			bRec.measure = EDiscrete;
 
-			bRec.eta = relIOR;//m_intIOR / m_extIOR;
+			bRec.eta = m_intIOR / m_extIOR;
 
 			if (isnan(bRec.eta) || bRec.wo.hasNaN()) {
 				printf("Dielectric NAN!\n");
