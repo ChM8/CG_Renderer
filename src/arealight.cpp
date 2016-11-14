@@ -113,7 +113,7 @@ public:
 
 
     virtual Color3f samplePhoton(Ray3f &ray, const Point2f &sample1, const Point2f &sample2) const override {
-        
+        // Returns the exitant radius multplied by M_PI and the surface area
 
 		// First, sample a point on the mesh (uniformly) - reference is a dummy point
 		ShapeQueryRecord sRec = ShapeQueryRecord(Point3f(0.0f));
@@ -131,12 +131,12 @@ public:
 		ray.mint = FLT_EPSILON;
 		ray.maxt = FLT_MAX;
 
-		// Get the value of the light at the sampled position (with a dummy-reference point)
+		// Get the value of the light at the sampled position (with a dummy-reference point - in case if emition is not uniform)
 		EmitterQueryRecord lRec = EmitterQueryRecord(sRec.p + sDirWC, sRec.p, sRec.n);
 		
 		Color3f exRad = eval(lRec);
 
-		return exRad;
+		return exRad * M_PI; // TODO: Surface area?
     }
 
 

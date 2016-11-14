@@ -23,6 +23,7 @@
 #include <nori/scene.h>
 #include <nori/photon.h>
 #include <nori/sampler.h>
+//#include "arealight.cpp"
 
 NORI_NAMESPACE_BEGIN
 
@@ -101,17 +102,20 @@ public:
             m_photonRadius
         );
     }
-
-	virtual Photon samplePhoton(const Scene *scene, Sampler *sampler) {
+	 
+	/*virtual Photon samplePhoton(const std::vector<AreaEmitter *> areaEmitters, Sampler * sampler) {
 
 		// Choose a random emitter
-		std::vector<Emitter*> emCont = scene->getLights();
-		float emProb = 1.0f / scene->getLights().size();
+		const AreaEmitter * emR = areaEmitters.at((int) sampler->next1D() * areaEmitters.size());
+		float emProb = 1.0f / areaEmitters.size();
+
+		// Sample a photon from the random emitter
+		Color3f exRadPh = emR->samplePhoton(Ray3f(), sampler->next2D(), sampler->next2D());
+		// Adjust the power by the number of photons
+		exRadPh /= m_photonCount;
 
 
-
-
-	}
+	}*/
 
 
 private:

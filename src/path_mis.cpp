@@ -52,15 +52,15 @@ public:
 			// Create an EmitterQueryRecord
 			EmitterQueryRecord emsLRec = EmitterQueryRecord(itsM.p);
 			// Sample the randomly chosen emitter and get the BSDF value (TODO: SolidAngle?)
-			float emsEmPdf = emsEm->pdf(emsLRec) * probEm;
 			Color3f emsEmS = emsEm->sample(emsLRec, sampler->next2D());
+			float emsEmPdf = emsEm->pdf(emsLRec) * probEm;
 			BSDFQueryRecord emsBSDFRec = BSDFQueryRecord(itsM.shFrame.toLocal(-sRay.d), itsM.shFrame.toLocal(emsLRec.shadowRay.d), ESolidAngle);
 			Color3f emsBSDFRes = objBSDF->eval(emsBSDFRec);
 			float emsBSDFPdf = objBSDF->pdf(emsBSDFRec);
 
 			// Compute Weight and add Radiance
 			float wEm = 0.0f;
-			if (!isDelta && (emsBSDFPdf != 0.0f || (emsEmPdf) != 0.0f)) {
+			if (!isDelta && (emsBSDFPdf != 0.0f || emsEmPdf != 0.0f)) {
 				wEm = emsEmPdf / (emsBSDFPdf + emsEmPdf);
 			}
 
