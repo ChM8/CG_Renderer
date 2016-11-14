@@ -63,6 +63,7 @@ public:
 			if (!isDelta && (emsBSDFPdf != 0.0f || emsEmPdf != 0.0f)) {
 				wEm = emsEmPdf / (emsBSDFPdf + emsEmPdf);
 			}
+			//printf("Emitter: BSDF pdf: %.2f, Emitter pdf: %.2f (%.2f * %.2f) -> wEm: %.2f\n", emsBSDFPdf, emsEmPdf, emsEm->pdf(emsLRec), probEm, wEm);
 
 			// Ajdust weights to sum up to one
 			if ((wMat + wEm != 1.0f) && (wMat != 0.0f || wEm != 0.0f)) {
@@ -71,7 +72,8 @@ public:
 				wEm *= fac;
 			}
 
-			exRad += wEm * t.cwiseProduct(emsEmS.cwiseProduct(emsBSDFRes)) * n.dot(emsLRec.shadowRay.d);
+			float cosThetaIn = (n.norm() * emsLRec.wi.norm() != 0.0f) ? n.dot(emsLRec.wi) / (n.norm() * emsLRec.wi.norm()) : 0.0f;
+			exRad += wEm * t.cwiseProduct(emsEmS.cwiseProduct(emsBSDFRes)) * cosThetaIn;// / objBSDF->eval(emsBSDFRec);
 
 			// MAT Sampling
 			// Intersection -> emitter?

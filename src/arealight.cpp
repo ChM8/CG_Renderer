@@ -99,12 +99,13 @@ public:
             throw NoriException("There is no shape attached to this Area light!");
 
 		ShapeQueryRecord sRec = ShapeQueryRecord(lRec.ref, lRec.p);
-		m_shape->pdfSurface(sRec);
+		float pdf = m_shape->pdfSurface(sRec);
+		
 
 		float dis = (lRec.p - lRec.ref).norm();
 		float cT = lRec.n.dot(-lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
 		if (cT > 0) {
-			return sRec.pdf * (dis * dis) / cT;
+			return pdf * (dis * dis) / cT; // TODO: correct
 		}
 		else {
 			return 0.0f;

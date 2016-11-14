@@ -23,7 +23,6 @@
 #include <nori/scene.h>
 #include <nori/photon.h>
 #include <nori/sampler.h>
-//#include "arealight.cpp"
 
 NORI_NAMESPACE_BEGIN
 
@@ -103,19 +102,24 @@ public:
         );
     }
 	 
-	/*virtual Photon samplePhoton(const std::vector<AreaEmitter *> areaEmitters, Sampler * sampler) {
+	virtual std::vector<const Photon *> samplePhoton(const Scene * scene, Sampler * sampler, int maxSamples) {
 
-		// Choose a random emitter
-		const AreaEmitter * emR = areaEmitters.at((int) sampler->next1D() * areaEmitters.size());
-		float emProb = 1.0f / areaEmitters.size();
+		std::vector<const Photon *> resPhs = std::vector<const Photon *>();
+
+		// Choose a random emitter (TODO: atm assuming only AreaEmitters in the scene)
+		const Emitter * emR = scene->getRandomEmitter(sampler->next1D());
+		float emProb = 1.0f / scene->getLights().size();
 
 		// Sample a photon from the random emitter
 		Color3f exRadPh = emR->samplePhoton(Ray3f(), sampler->next2D(), sampler->next2D());
 		// Adjust the power by the number of photons
 		exRadPh /= m_photonCount;
 
+		// Path-trace the photon (and add a photon to the result list at every diffuse surface - up to maxSamples photons)
 
-	}*/
+
+
+	}
 
 
 private:
