@@ -73,7 +73,7 @@ public:
 			}
 
 			float cosThetaIn = (n.norm() * emsLRec.wi.norm() != 0.0f) ? n.dot(emsLRec.wi) / (n.norm() * emsLRec.wi.norm()) : 0.0f;
-			exRad += wEm * t.cwiseProduct(emsEmS.cwiseProduct(emsBSDFRes)) * cosThetaIn;// / objBSDF->eval(emsBSDFRec);
+			exRad += wEm * t.cwiseProduct(emsEmS.cwiseProduct(emsBSDFRes));// *cosThetaIn;// / objBSDF->eval(emsBSDFRec);
 
 			// MAT Sampling
 			// Intersection -> emitter?
@@ -116,7 +116,8 @@ public:
 
 			// Adjust throughput according to current BSDF / pdf of sample
 			// (bsdfRes from sample is already divided by PDF)
-			t = t.cwiseProduct(bsdfRes);
+			float cosThetaInWo = (n.norm() * woWC.norm() != 0.0f) ? n.dot(woWC) / (n.norm() * woWC.norm()) : 0.0f;
+			t = t.cwiseProduct(bsdfRes);// * cosThetaInWo;
 
 			// Compute the wMat of the sampled BSDF
 			wMat = 0.0f;

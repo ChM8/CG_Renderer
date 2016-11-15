@@ -52,10 +52,14 @@ public:
 				// Get the incident radiance from this emitter (exitant times throughput)
 				exRad += t.cwiseProduct(em->eval(lRec)); //* itsM.shFrame.n.dot(-sRay.d);
 
+				if (!exRad.isValid()) {
+					printf("INVALID! t: %.2f\n",t);
+				}
+
 			}
 			
 			// Success-probability is the throughput (decreasing with the contribution)
-			float succProb = std::min(t.maxCoeff(), 0.999f);
+			float succProb = (it >= minIt) ? std::min(t.maxCoeff(), 0.999f) : 1.0f;
 			if (sampler->next1D() >= succProb) {
 				// Failed in Russian Roulette - break path-tracing
 				break;
@@ -75,7 +79,9 @@ public:
 
 			// Adjust throughput according to current BSDF / pdf of sample
 			// (bsdfRes from sample is already divided by PDF)
-			t = t.cwiseProduct(bsdfRes);
+			float cosThetaIn = (n.norm() * woWC.norm() > 0.0f) ? n.dot(woWC) / (n.norm() * woWC.norm()) : 0.0f;
+
+			t = t.cwiseProduct(bsdfRes);// *cosThetaIn;
 
 		}
 		

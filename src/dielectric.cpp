@@ -43,8 +43,8 @@ public:
     }
 
     virtual Color3f sample(BSDFQueryRecord &bRec, const Point2f &sample) const override {
-		if (Frame::cosTheta(bRec.wi) <= 0)
-			return Color3f(0.0f);
+		/*if (Frame::cosTheta(bRec.wi) <= 0)
+			return Color3f(0.0f);*/
 
 		// Check if reflection or refraction is sampled
 		float frCoeff = fresnel(Frame::cosTheta(bRec.wi), m_extIOR, m_intIOR);
@@ -53,14 +53,19 @@ public:
 		if (bRfrac) {
 			// Sampling refraction
 
-			// Compute exitant vector according to Snell's law
 			float relIOR = m_extIOR / m_intIOR;
 			Vector3f n = Vector3f(0.0f, 0.0f, 1.0f);
+			if (Frame::cosTheta(bRec.wi) <= 0) {
+				relIOR = m_intIOR / m_extIOR;
+				n = Vector3f(0.0f, 0.0f, -1.0f);
+			}
 
-			Vector3f tmp1 = -relIOR * bRec.wi - (bRec.wi.dot(n) * n);
-			Vector3f tmp2 = n * sqrt(1 - relIOR * relIOR * (1 - bRec.wi.dot(n) * bRec.wi.dot(n)));
+			// Compute exitant vector according to Snell's law
 
-			bRec.wo = tmp1 - tmp2;
+			Vector3f tmp1 = -relIOR * (bRec.wi - (bRec.wi.dot(n) * n));
+			Vector3f tmp2 = n * sqrt(1 - (relIOR * relIOR) * (1 - (bRec.wi.dot(n) * bRec.wi.dot(n))));
+
+			bRec.wo = (tmp1 - tmp2).normalized();
 			bRec.measure = EDiscrete;
 
 			bRec.eta = m_intIOR / m_extIOR;
@@ -74,6 +79,8 @@ public:
 		}
 		else {
 			// Sampling reflection
+			if (Frame::cosTheta(bRec.wi) <= 0)
+				return 0.0f;
 
 			// Reflection in local coordinates (same as in mirror.cpp)
 			bRec.wo = Vector3f(-bRec.wi.x(), -bRec.wi.y(), bRec.wi.z());

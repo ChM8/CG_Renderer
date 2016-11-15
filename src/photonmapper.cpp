@@ -53,8 +53,6 @@ public:
 		if (m_photonRadius == 0)
 			m_photonRadius = scene->getBoundingBox().getExtents().norm() / 500.0f;
 
-	
-
 		/* How to add a photon?
 		 * m_photonMap->push_back(Photon(
 		 *	Point3f(0, 0, 0),  // Position
@@ -64,6 +62,18 @@ public:
 		 */
 
 		// put your code to trace photons here
+		int diff = m_photonCount;
+
+		while (diff > 0) {
+			// Not yet all photons sampled - get some
+			std::vector<const Photon *> sPhs = samplePhoton(scene, sampler, diff);
+
+			// Push the sampled photons into the map
+			for (const Photon * ph : sPhs) {
+				m_photonMap->push_back(* ph);
+			}
+
+		}
 
 		/* Build the photon map */
         m_photonMap->build();
@@ -86,7 +96,80 @@ public:
 		 * }
 		 */
 
-		// put your code for path tracing with photon gathering here
+		// Default: no light
+		Color3f exRad = Color3f(0.0f);
+
+		// Throughput
+		Color3f t = Color3f(1.0f);
+		int it = 0, minIt = 3;
+
+		Ray3f sRay = _ray;
+
+		// Trace path until break (diffuse/russian roulette)
+		while (true) {
+
+			Intersection itsM;
+
+			if (!scene->rayIntersect(sRay)) {
+				// No intersection with geometry - no light received from this direction
+				break;
+			}
+
+			// Get information about intersection
+			Point3f p = itsM.p;
+			Normal3f n = itsM.geoFrame.n;
+			const BSDF * objBSDF = itsM.mesh->getBSDF();
+
+			// Check if this mesh emits light
+			if (itsM.mesh->isEmitter()) {
+				// If so, add emitted radiance
+				const Emitter* em = itsM.mesh->getEmitter();
+
+				// Create an EmitterQueryRecord
+				EmitterQueryRecord lRec = EmitterQueryRecord(sRay.o, p, n);
+				// Get the incident radiance from this emitter (exitant times throughput)
+				exRad += t.cwiseProduct(em->eval(lRec));
+			}
+
+			// Check if the surface is diffuse
+			if (objBSDF->isDiffuse()) {
+				// Query the PhotonMap and stop path-tracing
+				std::vector<uint32_t> results;
+				m_photonMap->search(itsM.p,	m_photonRadius, results);
+				
+				// Density Estimation of Photons
+				Color3f phEst = Color3f(0.0f);
+				
+				exRad += t.cwiseProduct(phEst);
+				
+				break;
+			}
+
+			// Else, Russian Roulette
+			float succProb = (it >= minIt) ? std::min(t.maxCoeff(), 0.999f) : 1.0f;
+			if (sampler->next1D() >= succProb) {
+				// Failed in Russian Roulette - break path-tracing
+				break;
+			}
+
+			// Sample the bsdf for the next direction
+			// Build BSDFQuery
+			BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(-sRay.d));
+			bsdfRec.uv = itsM.uv;
+			// sample
+			Color3f bsdfRes = itsM.mesh->getBSDF()->sample(bsdfRec, sampler->next2D());
+			// Use the sample direction in world-space for casting a ray
+			Vector3f woWC = itsM.toWorld(bsdfRec.wo);
+			sRay = Ray3f(itsM.p, woWC);
+
+			// Adjust throughput according to current BSDF / pdf of sample
+			// (bsdfRes from sample is already divided by PDF)
+			float cosThetaIn = (n.norm() * woWC.norm() > 0.0f) ? n.dot(woWC) / (n.norm() * woWC.norm()) : 0.0f;
+
+			t = t.cwiseProduct(bsdfRes);// *cosThetaIn;
+
+
+		}
 
 		return Color3f{};
     }
@@ -111,14 +194,59 @@ public:
 		float emProb = 1.0f / scene->getLights().size();
 
 		// Sample a photon from the random emitter
-		Color3f exRadPh = emR->samplePhoton(Ray3f(), sampler->next2D(), sampler->next2D());
+		Ray3f sRay;
+		Color3f W = emR->samplePhoton(sRay, sampler->next2D(), sampler->next2D());
 		// Adjust the power by the number of photons
-		exRadPh /= m_photonCount;
+		W /= m_photonCount;
+
+		// Variabls for Russian Roulette
+		int it = 0, minIt = 3;
 
 		// Path-trace the photon (and add a photon to the result list at every diffuse surface - up to maxSamples photons)
+		while (resPhs.size() < maxSamples) {
+			// Trace the current ray
+			Intersection itsM;
 
+			if (!scene->rayIntersect(sRay)) {
+				// No intersection and therefore no place to store any photons
+				return resPhs;
+			}
 
+			// Intersection in the scene with current ray
+			const BSDF * objBsdf = itsM.mesh->getBSDF();
 
+			if (objBsdf->isDiffuse()) {
+				// Surface is diffuse, create and store a photon at this position
+				resPhs.push_back(&Photon(itsM.p, -sRay.d, W));
+			}
+
+			// Play Russian Roulette (if trace should be continued)
+			float succProb = (it >= minIt) ? std::min(W.maxCoeff(), 0.999f) : 1.0f;
+			if (sampler->next1D() >= succProb) {
+				// Failed in Russian Roulette - break path-tracing
+				return resPhs;
+			}
+			// Sample the bsdf at the current position and create a new ray to follow
+			BSDFQueryRecord bRec = BSDFQueryRecord(-sRay.d);
+			Color3f bsdfRes = objBsdf->sample(bRec, sampler->next2D());
+			Vector3f woWC = itsM.toWorld(bRec.wo);
+			sRay = Ray3f(itsM.p, woWC);
+
+			// Adjust the power according to the bsdf/theta/pdf (bsdf/pdf should be calculated in sample())
+			Vector3f n = itsM.geoFrame.n;
+			float cosThetaIn = 0.0f;
+			if (n.norm() * woWC.norm() > 0.0f) {
+				float cosThetaIn = n.dot(woWC) / (n.norm() * woWC.norm());
+			}
+			else {
+				break;
+			}
+
+			W = W.cwiseProduct(bsdfRes);//; *cosThetaIn;
+
+		}
+
+		return resPhs;
 	}
 
 
