@@ -33,7 +33,7 @@ public:
 
     PhotonMapper(const PropertyList &props) {
         /* Lookup parameters */
-        m_photonCount  = props.getInteger("photonCount", 1000000);
+        m_photonCount  = props.getInteger("photonCount", 1000000)/100;//TODO CORRECT AGAIN!
         m_photonRadius = props.getFloat("photonRadius", 0.0f /* Default: automatic */);
     }
 
@@ -71,6 +71,7 @@ public:
 			// Push the sampled photons into the map
 			for (const Photon * ph : sPhs) {
 				m_photonMap->push_back(* ph);
+				diff--;
 			}
 
 		}
@@ -110,7 +111,7 @@ public:
 
 			Intersection itsM;
 
-			if (!scene->rayIntersect(sRay)) {
+			if (!scene->rayIntersect(sRay, itsM)) {
 				// No intersection with geometry - no light received from this direction
 				break;
 			}
@@ -138,9 +139,19 @@ public:
 				m_photonMap->search(itsM.p,	m_photonRadius, results);
 				
 				// Density Estimation of Photons
-				Color3f phEst = Color3f(0.0f);
-				
-				exRad += t.cwiseProduct(phEst);
+				// Iterate over all the photons found in the map
+				for (uint32_t i : results) {
+					const Photon &ph = (*m_photonMap)[i];
+
+					// Query the BSDF
+					BSDFQueryRecord bRecPh = BSDFQueryRecord(-sRay.d, ph.getDirection(), ESolidAngle);
+					Color3f bResPh = objBSDF->eval(bRecPh);
+
+					Color3f phContr = bResPh.cwiseProduct(ph.getPower() / (M_PI * m_photonRadius * m_photonRadius));
+
+					// Add this photons contribution
+					exRad += t.cwiseProduct(phContr);
+				}
 				
 				break;
 			}
@@ -207,7 +218,7 @@ public:
 			// Trace the current ray
 			Intersection itsM;
 
-			if (!scene->rayIntersect(sRay)) {
+			if (!scene->rayIntersect(sRay, itsM)) {
 				// No intersection and therefore no place to store any photons
 				return resPhs;
 			}

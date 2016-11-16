@@ -127,10 +127,8 @@ public:
 		Vector3f sDirWC = Frame(sRec.n).toWorld(dir);
 
 		// Create the photon-ray
-		ray.d = sDirWC;
-		ray.o = sRec.p;
-		ray.mint = FLT_EPSILON;
-		ray.maxt = FLT_MAX;
+		Ray3f sRay = Ray3f(sRec.p, sDirWC);
+		ray = sRay;
 
 		// Get the value of the light at the sampled position (with a dummy-reference point - in case if emition is not uniform)
 		EmitterQueryRecord lRec = EmitterQueryRecord(sRec.p + sDirWC, sRec.p, sRec.n);
