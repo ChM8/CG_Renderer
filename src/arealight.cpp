@@ -105,7 +105,7 @@ public:
 		float dis = (lRec.p - lRec.ref).norm();
 		float cT = lRec.n.dot(-lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
 		if (cT > 0) {
-			return pdf * (dis * dis) / cT; // TODO: correct
+			return pdf *(dis * dis) / cT;
 		}
 		else {
 			return 0.0f;
@@ -132,10 +132,8 @@ public:
 
 		// Get the value of the light at the sampled position (with a dummy-reference point - in case if emition is not uniform)
 		EmitterQueryRecord lRec = EmitterQueryRecord(sRec.p + sDirWC, sRec.p, sRec.n);
-		
-		Color3f exRad = eval(lRec);
 
-		return exRad * M_PI; // TODO: Surface area?
+		return  eval(lRec) * M_PI * (1 / sRec.pdf);
     }
 
 

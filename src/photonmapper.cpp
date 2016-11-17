@@ -33,7 +33,7 @@ public:
 
     PhotonMapper(const PropertyList &props) {
         /* Lookup parameters */
-        m_photonCount  = props.getInteger("photonCount", 1000000)/100;//TODO CORRECT AGAIN!
+        m_photonCount  = props.getInteger("photonCount", 1000000)/15;//TODO CORRECT AGAIN!
         m_photonRadius = props.getFloat("photonRadius", 0.0f /* Default: automatic */);
     }
 
@@ -66,13 +66,17 @@ public:
 
 		while (diff > 0) {
 			// Not yet all photons sampled - get some
-			std::vector<const Photon *> sPhs = samplePhoton(scene, sampler, diff);
+			std::vector<Photon> sPhs = std::vector<Photon>();
+			samplePhoton(scene, &sPhs, sampler, diff);
 
 			// Push the sampled photons into the map
-			for (const Photon * ph : sPhs) {
-				m_photonMap->push_back(* ph);
-				diff--;
+			for (const Photon ph : sPhs) {
+				//Photon p = Photon(ph);
+				m_photonMap->push_back(ph);
+				//printf("Pushing photons with power: %.2f,%.2f,%.2f - %.2f,%.2f,%.2f\n", p.getPower().x(), ph.getPower().y(), ph.getPower().z(), p.getPower().x(), p.getPower().y(), p.getPower().z());
 			}
+
+			diff--;
 
 		}
 
@@ -140,18 +144,23 @@ public:
 				
 				// Density Estimation of Photons
 				// Iterate over all the photons found in the map
+				Color3f phContr = Color3f(0.0f);
 				for (uint32_t i : results) {
 					const Photon &ph = (*m_photonMap)[i];
+					/*Point3f posPh = ph.getPosition();
+					Vector3f dirPh = ph.getDirection();
+					Color3f powPh = ph.getPower();
+					printf("Photon %d: Pos:[%.2f,%.2f,%.2f], Dir: [%.2f,%.2f,%.2f], Pow: [%.2f,%.2f,%.2f]\n", i, posPh.x(), posPh.y(), posPh.z(), dirPh.x(), dirPh.y(), dirPh.z(), powPh.x(), powPh.y(), powPh.z());*/
 
 					// Query the BSDF
-					BSDFQueryRecord bRecPh = BSDFQueryRecord(-sRay.d, ph.getDirection(), ESolidAngle);
+					BSDFQueryRecord bRecPh = BSDFQueryRecord(itsM.toLocal(-sRay.d), itsM.toLocal(ph.getDirection()), ESolidAngle);
 					Color3f bResPh = objBSDF->eval(bRecPh);
+					
 
-					Color3f phContr = bResPh.cwiseProduct(ph.getPower() / (M_PI * m_photonRadius * m_photonRadius));
-
-					// Add this photons contribution
-					exRad += t.cwiseProduct(phContr);
+					phContr += bResPh.cwiseProduct(ph.getPower());
 				}
+
+				exRad += t.cwiseProduct((phContr) / (M_PI * m_photonRadius * m_photonRadius));
 				
 				break;
 			}
@@ -182,7 +191,8 @@ public:
 
 		}
 
-		return Color3f{};
+		//printf("Exrad: %.2f\n", exRad);
+		return exRad;
     }
 
     virtual std::string toString() const override {
@@ -196,9 +206,7 @@ public:
         );
     }
 	 
-	virtual std::vector<const Photon *> samplePhoton(const Scene * scene, Sampler * sampler, int maxSamples) {
-
-		std::vector<const Photon *> resPhs = std::vector<const Photon *>();
+	virtual void samplePhoton(const Scene * scene, std::vector<Photon> * resPh, Sampler * sampler, int maxSamples) {
 
 		// Choose a random emitter (TODO: atm assuming only AreaEmitters in the scene)
 		const Emitter * emR = scene->getRandomEmitter(sampler->next1D());
@@ -214,13 +222,13 @@ public:
 		int it = 0, minIt = 3;
 
 		// Path-trace the photon (and add a photon to the result list at every diffuse surface - up to maxSamples photons)
-		while (resPhs.size() < maxSamples) {
+		while (resPh->size() < maxSamples) {
 			// Trace the current ray
 			Intersection itsM;
 
 			if (!scene->rayIntersect(sRay, itsM)) {
 				// No intersection and therefore no place to store any photons
-				return resPhs;
+				return;
 			}
 
 			// Intersection in the scene with current ray
@@ -228,17 +236,17 @@ public:
 
 			if (objBsdf->isDiffuse()) {
 				// Surface is diffuse, create and store a photon at this position
-				resPhs.push_back(&Photon(itsM.p, -sRay.d, W));
+				resPh->push_back(Photon(itsM.p, -sRay.d, W));
 			}
 
 			// Play Russian Roulette (if trace should be continued)
 			float succProb = (it >= minIt) ? std::min(W.maxCoeff(), 0.999f) : 1.0f;
 			if (sampler->next1D() >= succProb) {
 				// Failed in Russian Roulette - break path-tracing
-				return resPhs;
+				return;
 			}
 			// Sample the bsdf at the current position and create a new ray to follow
-			BSDFQueryRecord bRec = BSDFQueryRecord(-sRay.d);
+			BSDFQueryRecord bRec = BSDFQueryRecord(itsM.toLocal(-sRay.d));
 			Color3f bsdfRes = objBsdf->sample(bRec, sampler->next2D());
 			Vector3f woWC = itsM.toWorld(bRec.wo);
 			sRay = Ray3f(itsM.p, woWC);
@@ -257,7 +265,7 @@ public:
 
 		}
 
-		return resPhs;
+		return;
 	}
 
 

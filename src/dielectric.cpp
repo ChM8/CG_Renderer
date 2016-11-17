@@ -55,15 +55,15 @@ public:
 
 			float relIOR = m_extIOR / m_intIOR;
 			Vector3f n = Vector3f(0.0f, 0.0f, 1.0f);
-			if (Frame::cosTheta(bRec.wi) <= 0) {
+			if (Frame::cosTheta(bRec.wi) <= 0.0f) {
 				relIOR = m_intIOR / m_extIOR;
-				n = Vector3f(0.0f, 0.0f, -1.0f);
+				n *= -1;
 			}
 
 			// Compute exitant vector according to Snell's law
-
-			Vector3f tmp1 = -relIOR * (bRec.wi - (bRec.wi.dot(n) * n));
-			Vector3f tmp2 = n * sqrt(1 - (relIOR * relIOR) * (1 - (bRec.wi.dot(n) * bRec.wi.dot(n))));
+			float dot = bRec.wi.dot(n);
+			Vector3f tmp1 = -relIOR * (bRec.wi - (dot * n));
+			Vector3f tmp2 = n * sqrt(1 - (relIOR * relIOR) * (1 - (dot * dot)));
 
 			bRec.wo = (tmp1 - tmp2).normalized();
 			bRec.measure = EDiscrete;

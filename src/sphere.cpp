@@ -40,34 +40,35 @@ public:
     virtual bool rayIntersect(uint32_t index, const Ray3f &ray, float &u, float &v, float &t) const override {
 
 		// Some variables used for calculating the intersection (variables defining eq.)
-		float a = ray.d.squaredNorm();
-		float b = 2 * (ray.o.cwiseProduct(ray.d).sum() - m_position.cwiseProduct(ray.d).sum());
-		float c = m_position.squaredNorm() - (2 * m_position.cwiseProduct(ray.o).sum()) + ray.o.squaredNorm() - m_radius * m_radius;
+		float a = (ray.d.cwiseProduct(ray.d)).sum();
+		float b = 2 * (ray.d.cwiseProduct(ray.o - m_position)).sum();
+		float c = (m_position.cwiseProduct(m_position) + ray.o.cwiseProduct(ray.o) - 2 * ray.o.cwiseProduct(m_position)).sum() - m_radius * m_radius;
 		// Calculating the discriminant
 		float disc = b * b - 4 * a * c;
 
 		if (disc >= 0) {
 			// Positive discriminant - there is an intersection, solve for t
-			Vector2f tCalc = Vector2f((-b + sqrt(disc)) / (2 * a), (-b - sqrt(disc)) / (2 * a));
+			
+			float t1 = (-b + sqrtf(disc)) / (2 * a);
+			float t2 = (-b - sqrtf(disc)) / (2 * a);
+			
+			//Vector2f tCalc = Vector2f(-2 * c / (b + sqrt(disc)), -2 * c / (b - sqrt(disc)));
+			// Sort the t's
+			// Vector2f sT = (tCalc.x() <= tCalc.y()) ? Vector2f(tCalc.x(), tCalc.y()) : Vector2f(tCalc.y(), tCalc.x());
 
-			// Find the smallest positive result
-			float tmin = fmin(tCalc.x(), tCalc.y());
-			float tmax = fmax(tCalc.x(), tCalc.y());
-			float ttemp = -1.f;
-
-			if (tmin >= 0) {
-				ttemp = tmin;
+			// Check, which of the points is a valid solution
+			if (t1 > ray.mint && t1 < ray.maxt) {
+				//printf("HIT CHECK: True X - res: %.2f, %.2f  - mint,maxt:[%.2f, %.2f]\n", t1, t2, ray.mint, ray.maxt);
+				t = t1;
+				return true;
 			}
-			else if (tmax >= 0) {
-				ttemp = tmax;
-			}
-
-			// Check if t of intersection (if any) is in valid range of the ray
-			if (ttemp >= 0 && (ttemp >= ray.mint && ttemp <= ray.maxt)) {
+			else if (t2 > ray.mint && t2 < ray.maxt) {
+				//printf("HIT CHECK: True Y - res: %.2f, %.2f  - mint,maxt:[%.2f, %.2f]\n", t1, t2, ray.mint, ray.maxt);
+				t = t2;
 				return true;
 			}
 
-			// No positive intersection (only one on the 'backside' of the ray or outside 't')
+			// No positive intersection (only one on the 'backside' of the ray or outside 't'-range)
 			return false;
 		}
 		else {
@@ -78,27 +79,42 @@ public:
 
     virtual void setHitInformation(uint32_t index, const Ray3f &ray, Intersection & its) const override {
         // Called upon hit on this sphere (so there is a valid intersection); compute it.
-		float a = ray.d.squaredNorm();
+		/*float a = ray.d.squaredNorm();
 		float b = 2 * (ray.o.cwiseProduct(ray.d).sum() - m_position.cwiseProduct(ray.d).sum());
 		float c = m_position.squaredNorm() - (2 * m_position.cwiseProduct(ray.o).sum()) + ray.o.squaredNorm() - m_radius * m_radius;
 		float disc = b * b - 4 * a * c;
-		Vector2f tCalc = Vector2f((-b + sqrt(disc)) / (2 * a), (-b - sqrt(disc)) / (2 * a));
-		float tmin = fmin(tCalc.x(), tCalc.y());
-		float tmax = fmax(tCalc.x(), tCalc.y());
-		// Set the solution for t (smallest positive)
-		if (tmin >= 0) {
-			its.t = tmin;
+		Vector2f tCalc = Vector2f((-b + sqrt(disc)) / (2 * a), (-b - sqrt(disc)) / (2 * a));*/
+
+
+		// Some variables used for calculating the intersection (variables defining eq.)
+		float a = (ray.d.cwiseProduct(ray.d)).sum();
+		float b = 2 * (ray.d.cwiseProduct(ray.o - m_position)).sum();
+		float c = (m_position.cwiseProduct(m_position) + ray.o.cwiseProduct(ray.o) - 2 * ray.o.cwiseProduct(m_position)).sum() - m_radius * m_radius;
+		// Calculating the discriminant
+		float disc = b * b - 4 * a * c;
+
+		Vector2f tCalc = Vector2f((-b + sqrtf(disc)) / (2 * a), (-b - sqrtf(disc)) / (2 * a));
+		//Vector2f tCalc = Vector2f(-2 * c / (b + sqrt(disc)), -2 * c / (b - sqrt(disc)));
+
+		// Sort the t's
+		Vector2f sT = (tCalc.x() <= tCalc.y()) ? Vector2f(tCalc.x(), tCalc.y()) : Vector2f(tCalc.y(), tCalc.x());
+
+		if (sT.x() > 0.0f) {
+			its.t = sT.x();
+			//printf("t = %.2f\n", its.t);
 		}
-		else if (tmax >= 0) {
-			its.t = tmax;
+		else if (sT.y() > 0.0f) {
+			its.t = sT.y();
+			//printf("t = %.2f\n", its.t);
 		}
+
+		//printf("HIT INFO: tCalc: %.2f, %.2f  - sT: %.2f, %.2f  - mint,maxt:[%.2f, %.2f]  - result: %.2f\n", tCalc.x(), tCalc.y(), sT.x(), sT.y(), mint, maxt, its.t);
 
 		// Compute the position of the intersection
 		its.p = ray.o + (its.t * ray.d);
 
 		// Compute normal for frame at this point on the sphere
-		Vector3f n = its.p - m_position;
-		n.normalize();
+		Vector3f n = (its.p - m_position).normalized();
 		// Set the frames
 		its.geoFrame = Frame(n);
 		its.shFrame = Frame(n);
