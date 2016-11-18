@@ -19,7 +19,8 @@ public:
 
 		// Initial Throughput
 		Color3f t = Color3f(1.f);
-		float wMat = 1.f;
+		float wMat = 1.0f;
+		float matsBSDFPdf = 0.0f;
 		bool isDelta = false;
 		// Minimum Iterations until Russian Roulette kicks in
 		int it = 0;
@@ -44,7 +45,34 @@ public:
 			Normal3f n = itsM.shFrame.n;
 			const BSDF * objBSDF = itsM.mesh->getBSDF();
 
-			// First - emitter sampling
+			// MAT Sampling
+			// Intersection -> emitter?
+			Color3f matsEmEval = Color3f(0.0f);
+			float matsEmPdf = 0.0f;
+			if (itsM.mesh->isEmitter()) {
+				// Get exitant light in direction of the current ray
+				const Emitter* matsEm = itsM.mesh->getEmitter();
+
+				// Create an EmitterQueryRecord
+				EmitterQueryRecord matsLRec = EmitterQueryRecord(sRay.o, p, n);
+
+				matsEmEval = matsEm->eval(matsLRec);
+				matsEmPdf = matsEm->pdf(matsLRec);
+
+				// Compute the wMat of the sampled BSDF
+				wMat = 0.0f;
+				if (isDelta || it == 0) {
+					wMat = 1.0f;
+				}
+				else if (matsEmPdf + matsBSDFPdf != 0.0f) {
+					wMat = matsBSDFPdf / (matsEmPdf + matsBSDFPdf);
+				}
+			}
+			else if (it > 0){
+				wMat = 0.0f;
+			}
+
+			// Emitter sampling
 			// Choose a random emitter to sample
 			const Emitter* emsEm = scene->getRandomEmitter(sampler->next1D());
 			float probEm = 1.0f / scene->getLights().size();
@@ -53,8 +81,8 @@ public:
 			EmitterQueryRecord emsLRec = EmitterQueryRecord(itsM.p);
 			// Sample the randomly chosen emitter and get the BSDF value (TODO: SolidAngle?)
 			Color3f emsEmS = emsEm->sample(emsLRec, sampler->next2D());
-			float emsEmPdf = emsEm->pdf(emsLRec);// *probEm;
-			BSDFQueryRecord emsBSDFRec = BSDFQueryRecord(itsM.shFrame.toLocal(-sRay.d), itsM.shFrame.toLocal(emsLRec.shadowRay.d), ESolidAngle);
+			float emsEmPdf = emsLRec.pdf * probEm;
+			BSDFQueryRecord emsBSDFRec = BSDFQueryRecord(itsM.shFrame.toLocal(-sRay.d), itsM.shFrame.toLocal(-emsLRec.wi), ESolidAngle);
 			Color3f emsBSDFRes = objBSDF->eval(emsBSDFRec);
 			float emsBSDFPdf = objBSDF->pdf(emsBSDFRec);
 
@@ -72,24 +100,11 @@ public:
 				wEm *= fac;
 			}
 
-			float cosThetaIn = (n.norm() * emsLRec.wi.norm() != 0.0f) ? n.dot(emsLRec.wi) / (n.norm() * emsLRec.wi.norm()) : 0.0f;
-			exRad += wEm * t.cwiseProduct(emsEmS.cwiseProduct(emsBSDFRes));// *cosThetaIn;// / objBSDF->eval(emsBSDFRec);
+			exRad += wEm * t.cwiseProduct(emsEmS.cwiseProduct(emsBSDFRes));
 
-			// MAT Sampling
-			// Intersection -> emitter?
-			float matsEmPdf = 0.0f;
-			if (itsM.mesh->isEmitter()) {
-				// Get exitant light in direction of the current ray
-				const Emitter* matsEm = itsM.mesh->getEmitter();				
+			// Add the mats-contribution previously computed
+			exRad += wMat * t.cwiseProduct(matsEmEval);
 
-				// Create an EmitterQueryRecord
-				EmitterQueryRecord matsLRec = EmitterQueryRecord(sRay.o, p, n);
-				// Get the incident radiance from this emitter (exitant times throughput)
-				exRad += wMat * t.cwiseProduct(matsEm->eval(matsLRec)); //* itsM.shFrame.n.dot(-sRay.d);
-
-				matsEmPdf = matsEm->pdf(matsLRec);
-
-			}
 			
 			// Success-probability is the throughput (decreasing with the contribution)
 			float succProb = (it >= minIt) ? std::min(t.maxCoeff(), 0.999f) : 1.0f;
@@ -97,8 +112,8 @@ public:
 				// Failed in Russian Roulette - break path-tracing
 				break;
 			}
-
 			// Else, continue path-tracing
+			t /= succProb;
 
 			// Sample a new direction from the bsdf from the current position
 			// Build BSDFQuery
@@ -106,7 +121,7 @@ public:
 			bsdfRec.uv = itsM.uv;
 			// sample
 			Color3f bsdfRes = objBSDF->sample(bsdfRec, sampler->next2D());
-			float matsBSDFPdf = objBSDF->pdf(bsdfRec);
+			matsBSDFPdf = objBSDF->pdf(bsdfRec);
 			// Use the sample direction in world-space for casting a ray
 			Vector3f woWC = itsM.toWorld(bsdfRec.wo);
 			sRay = Ray3f(itsM.p, woWC);
@@ -118,15 +133,6 @@ public:
 			// (bsdfRes from sample is already divided by PDF)
 			float cosThetaInWo = (n.norm() * woWC.norm() != 0.0f) ? n.dot(woWC) / (n.norm() * woWC.norm()) : 0.0f;
 			t = t.cwiseProduct(bsdfRes);// * cosThetaInWo;
-
-			// Compute the wMat of the sampled BSDF
-			wMat = 0.0f;
-			if (isDelta) {
-				wMat = 1.0f;
-			}
-			else if (matsEmPdf != 0.0f || matsBSDFPdf != 0.0f) {
-				wMat = matsBSDFPdf / (matsEmPdf + matsBSDFPdf);
-			}
 
 			it++;
 		}

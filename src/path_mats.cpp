@@ -49,40 +49,39 @@ public:
 
 				// Create an EmitterQueryRecord
 				EmitterQueryRecord lRec = EmitterQueryRecord(sRay.o, p, n);
-				// Get the incident radiance from this emitter (exitant times throughput)
-				exRad += t.cwiseProduct(em->eval(lRec)); //* itsM.shFrame.n.dot(-sRay.d);
-
-				if (!exRad.isValid()) {
-					printf("INVALID! t: %.2f\n",t);
-				}
+				// Get the incident radiance from this emitter
+				exRad += t.cwiseProduct(em->eval(lRec));
 
 			}
 			
 			// Success-probability is the throughput (decreasing with the contribution)
 			float succProb = (it >= minIt) ? std::min(t.maxCoeff(), 0.999f) : 1.0f;
-			if (sampler->next1D() >= succProb) {
+			if (sampler->next1D() < succProb) {
+				t /= succProb;
+			}
+			else {
 				// Failed in Russian Roulette - break path-tracing
 				break;
 			}
 
-			// Else, continue path-tracing
-
 			// Sample a new direction from the bsdf from the current position
 			// Build BSDFQuery
-			BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(-sRay.d));
+			BSDFQueryRecord bsdfRec = BSDFQueryRecord(itsM.toLocal(-sRay.d.normalized()));
 			bsdfRec.uv = itsM.uv;
-			// sample
-			Color3f bsdfRes = itsM.mesh->getBSDF()->sample(bsdfRec, sampler->next2D());
+			bsdfRec.measure = ESolidAngle;
+			bsdfRec.p = p;
+			// sample the BSDF
+			Color3f bsdfRes = objBSDF->sample(bsdfRec, sampler->next2D());
 			// Use the sample direction in world-space for casting a ray
 			Vector3f woWC = itsM.toWorld(bsdfRec.wo);
 			sRay = Ray3f(itsM.p, woWC);
 
 			// Adjust throughput according to current BSDF / pdf of sample
 			// (bsdfRes from sample is already divided by PDF)
-			float cosThetaIn = (n.norm() * woWC.norm() > 0.0f) ? n.dot(woWC) / (n.norm() * woWC.norm()) : 0.0f;
 
-			t = t.cwiseProduct(bsdfRes);// *cosThetaIn;
+			t = t.cwiseProduct(bsdfRes);
 
+			it++;
 		}
 		
 		return exRad;

@@ -33,7 +33,7 @@ public:
 
     PhotonMapper(const PropertyList &props) {
         /* Lookup parameters */
-        m_photonCount  = props.getInteger("photonCount", 1000000)/15;//TODO CORRECT AGAIN!
+        m_photonCount  = props.getInteger("photonCount", 1000000);//TODO CORRECT AGAIN!
         m_photonRadius = props.getFloat("photonRadius", 0.0f /* Default: automatic */);
     }
 
@@ -156,8 +156,8 @@ public:
 					BSDFQueryRecord bRecPh = BSDFQueryRecord(itsM.toLocal(-sRay.d), itsM.toLocal(ph.getDirection()), ESolidAngle);
 					Color3f bResPh = objBSDF->eval(bRecPh);
 					
-
-					phContr += bResPh.cwiseProduct(ph.getPower());
+					// Adjust the power by the number of photons
+					phContr += bResPh.cwiseProduct(ph.getPower() / m_photonCount);
 				}
 
 				exRad += t.cwiseProduct((phContr) / (M_PI * m_photonRadius * m_photonRadius));
@@ -215,8 +215,6 @@ public:
 		// Sample a photon from the random emitter
 		Ray3f sRay;
 		Color3f W = emR->samplePhoton(sRay, sampler->next2D(), sampler->next2D());
-		// Adjust the power by the number of photons
-		W /= m_photonCount;
 
 		// Variabls for Russian Roulette
 		int it = 0, minIt = 3;
@@ -245,6 +243,8 @@ public:
 				// Failed in Russian Roulette - break path-tracing
 				return;
 			}
+			W /= succProb;
+
 			// Sample the bsdf at the current position and create a new ray to follow
 			BSDFQueryRecord bRec = BSDFQueryRecord(itsM.toLocal(-sRay.d));
 			Color3f bsdfRes = objBsdf->sample(bRec, sampler->next2D());
@@ -261,8 +261,9 @@ public:
 				break;
 			}
 
-			W = W.cwiseProduct(bsdfRes);//; *cosThetaIn;
+			W = W.cwiseProduct(bsdfRes);
 
+			it++;
 		}
 
 		return;

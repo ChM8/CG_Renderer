@@ -43,8 +43,6 @@ public:
     }
 
     virtual Color3f sample(BSDFQueryRecord &bRec, const Point2f &sample) const override {
-		/*if (Frame::cosTheta(bRec.wi) <= 0)
-			return Color3f(0.0f);*/
 
 		// Check if reflection or refraction is sampled
 		float frCoeff = fresnel(Frame::cosTheta(bRec.wi), m_extIOR, m_intIOR);
@@ -70,17 +68,14 @@ public:
 
 			bRec.eta = m_intIOR / m_extIOR;
 
-			if (isnan(bRec.eta) || bRec.wo.hasNaN()) {
-				printf("Dielectric NAN!\n");
-			}
-
 			return Color3f(1.0f);
 
 		}
 		else {
 			// Sampling reflection
-			if (Frame::cosTheta(bRec.wi) <= 0)
-				return 0.0f;
+			//if (Frame::cosTheta(bRec.wi) <= 0)
+				// Internal reflection
+
 
 			// Reflection in local coordinates (same as in mirror.cpp)
 			bRec.wo = Vector3f(-bRec.wi.x(), -bRec.wi.y(), bRec.wi.z());

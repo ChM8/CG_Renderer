@@ -42,7 +42,7 @@ public:
 
 		// Check if 'ref'-point lies on positive side of emitter-surface (use vector
 		// from to intersection point to emitter)
-		if (lRec.n.dot(lRec.ref - lRec.p) >= 0.0f) {
+		if (lRec.n.dot(-lRec.wi) >= 0.0f) {
 			return m_radiance;
 		}
 		else {
@@ -65,18 +65,18 @@ public:
 		}
 
 		// Compute distance and (normalized) vector from light to sampler position.
-		Vector3f diff = (sRec.p - lRec.ref);
+		Vector3f diff = (sRec.ref - lRec.p);
 		float dis = diff.norm();
 		diff.normalize();
-		// ShadowRay (vector from ref to emitter)
-		Ray3f sRay = Ray3f(lRec.ref, diff, 0.0001f, dis);
 
 		// Set some fields of the EmitterQueryRecord
 		lRec.n = sRec.n;
+		// ShadowRay (vector from ref to emitter)
+		Ray3f sRay = Ray3f(lRec.ref, -diff, 0.0001f, dis);
 		lRec.shadowRay = sRay;
-		lRec.wi = diff;
+		lRec.wi = diff.normalized();
 
-		float cT = lRec.n.dot(-lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
+		float cT = lRec.n.dot(lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
 		if (cT > 0) {
 			lRec.pdf = sRec.pdf * (dis * dis) / cT;
 		}
@@ -103,7 +103,7 @@ public:
 		
 
 		float dis = (lRec.p - lRec.ref).norm();
-		float cT = lRec.n.dot(-lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
+		float cT = lRec.n.dot(lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
 		if (cT > 0) {
 			return pdf *(dis * dis) / cT;
 		}
