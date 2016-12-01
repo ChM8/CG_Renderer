@@ -74,9 +74,9 @@ public:
 		// ShadowRay (vector from ref to emitter)
 		Ray3f sRay = Ray3f(lRec.ref, -diff, 0.0001f, dis);
 		lRec.shadowRay = sRay;
-		lRec.wi = diff.normalized();
+		lRec.wi = diff;
 
-		float cT = lRec.n.dot(lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
+		float cT = lRec.n.dot(-lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
 		if (cT > 0) {
 			lRec.pdf = sRec.pdf * (dis * dis) / cT;
 		}
@@ -103,7 +103,7 @@ public:
 		
 
 		float dis = (lRec.p - lRec.ref).norm();
-		float cT = lRec.n.dot(lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
+		float cT = lRec.n.dot(-lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
 		if (cT > 0) {
 			return pdf *(dis * dis) / cT;
 		}
