@@ -84,6 +84,7 @@ add_executable(nori
   src/direct_mis.cpp
   src/path_mats.cpp
   src/path_mis.cpp
+  src/disney.cpp
 )
 
 # The following lines build the warping test application
