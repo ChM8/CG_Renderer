@@ -76,7 +76,7 @@ public:
 		lRec.shadowRay = sRay;
 		lRec.wi = diff.normalized();
 
-		float cT = lRec.n.dot(lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
+		float cT = lRec.n.dot(-lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
 		if (cT > 0) {
 			lRec.pdf = sRec.pdf * (dis * dis) / cT;
 		}
@@ -103,7 +103,7 @@ public:
 		
 
 		float dis = (lRec.p - lRec.ref).norm();
-		float cT = lRec.n.dot(lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
+		float cT = lRec.n.dot(-lRec.wi) / (lRec.n.norm() * lRec.wi.norm());
 		if (cT > 0) {
 			return pdf *(dis * dis) / cT;
 		}
