@@ -59,21 +59,6 @@ public:
 				t2 = tt;
 			}
 			
-			//Vector2f tCalc = Vector2f(-2 * c / (b + sqrt(disc)), -2 * c / (b - sqrt(disc)));
-			// Sort the t's
-			// Vector2f sT = (tCalc.x() <= tCalc.y()) ? Vector2f(tCalc.x(), tCalc.y()) : Vector2f(tCalc.y(), tCalc.x());
-
-			/*// Check, which of the points is a valid solution
-			if (t1 > ray.mint && t1 < ray.maxt) {
-				//printf("HIT CHECK: True X - res: %.2f, %.2f  - mint,maxt:[%.2f, %.2f]\n", t1, t2, ray.mint, ray.maxt);
-				t = t1;
-				return true;
-			}
-			else if (t2 > ray.mint && t2 < ray.maxt) {
-				//printf("HIT CHECK: True Y - res: %.2f, %.2f  - mint,maxt:[%.2f, %.2f]\n", t1, t2, ray.mint, ray.maxt);
-				t = t2;
-				return true;
-			}*/
 
 			if (t1 < ray.mint && t2 > ray.mint && t2 < ray.maxt) {
 				t = t2;
@@ -127,13 +112,8 @@ public:
 				t2 = tt;
 			}
 			
-			/*if (t1 > ray.mint && t1 < ray.maxt) {
-				its.t = t1;
-			}
-			else {
-				its.t = t2;
-			}*/
 
+			// Smallest positive result
 			if (t1 > 0.0f) {
 				its.t = t1;
 			}
@@ -147,21 +127,6 @@ public:
 		else if (disc == 0.0f) {
 			its.t = -b / (2 * a);
 		}
-
-		//Vector2f tCalc = Vector2f((-b + sqrtf(disc)) / (2 * a), (-b - sqrtf(disc)) / (2 * a));
-		//Vector2f tCalc = Vector2f(-2 * c / (b + sqrt(disc)), -2 * c / (b - sqrt(disc)));
-
-		/*// Sort the t's
-		Vector2f sT = (tCalc.x() <= tCalc.y()) ? Vector2f(tCalc.x(), tCalc.y()) : Vector2f(tCalc.y(), tCalc.x());
-
-		if (sT.x() > 0.0f) {
-			its.t = sT.x();
-			//printf("t = %.2f\n", its.t);
-		}
-		else if (sT.y() > 0.0f) {
-			its.t = sT.y();
-			//printf("t = %.2f\n", its.t);
-		}*/
 
 		// Compute the position of the intersection
 		its.p = ray.o + (its.t * ray.d);
