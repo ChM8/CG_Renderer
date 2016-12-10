@@ -9,7 +9,9 @@ NORI_NAMESPACE_BEGIN
 class PathMisIntegrator : public Integrator {
 public:
 	PathMisIntegrator(const PropertyList &props) {
-		/* No parameters this time */
+		if (props.has("renderEmitter")) {
+			m_bRenderEmitter = props.getBoolean("renderEmitter");
+		}
 	}
 
 	Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
@@ -50,6 +52,15 @@ public:
 			Color3f matsEmEval = Color3f(0.0f);
 			float matsEmPdf = 0.0f;
 			if (itsM.mesh->isEmitter()) {
+
+				if (it == 0 && !m_bRenderEmitter) {
+					// First hit is an emitter (that should not be rendered).
+					// Adjust the ray so that this intersection won't come up again.
+					// And retrace...
+					sRay.mint = itsM.t + 0.01f;
+					continue;
+				}
+
 				// Get exitant light in direction of the current ray
 				const Emitter* matsEm = itsM.mesh->getEmitter();
 
@@ -146,6 +157,7 @@ public:
 	}
 protected:
 	float rayLength;
+	bool m_bRenderEmitter;
 };
 
 NORI_REGISTER_CLASS(PathMisIntegrator, "path_mis");

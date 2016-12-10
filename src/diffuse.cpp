@@ -29,7 +29,12 @@ NORI_NAMESPACE_BEGIN
 class Diffuse : public BSDF {
 public:
     Diffuse(const PropertyList &propList) : m_albedo(nullptr) {
-        if(propList.has("albedo")) {
+		if (propList.has("image")) {
+			PropertyList l;
+			l.setString("filename", propList.getString("image"));
+			m_albedo = static_cast<Texture<Color3f> *>(NoriObjectFactory::createInstance("image_texture", l));
+		}
+		else if(propList.has("albedo")) {
             PropertyList l;
             l.setColor("value", propList.getColor("albedo"));
             m_albedo = static_cast<Texture<Color3f> *>(NoriObjectFactory::createInstance("constant_color", l));
