@@ -1,5 +1,7 @@
 #include <nori/bsdf.h>
 #include <nori/frame.h>
+#include <nori/warp.h>
+#include <nori/texture.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -7,7 +9,7 @@ class DisneyBRDF : public BSDF {
 public:
 	DisneyBRDF(const PropertyList &propList) {
 		/* baseColor - default white */
-		m_baseColor = propList.getColor("baseColor", Color3f(0.5f));
+		m_baseColor = propList.getColor("baseColor", Color3f(0.25f));
 
 		/* subsurface - default 0 */
 		m_subsurface = propList.getFloat("subsurface", 0.0f);
@@ -41,9 +43,10 @@ public:
 	}
 
 	virtual Color3f eval(const BSDFQueryRecord &bRec) const override {
-		if (Frame::cosTheta(bRec.wi) <= 0 || Frame::cosTheta(bRec.wo) <= 0)
+		if (Frame::cosTheta(bRec.wi) <= 0 || Frame::cosTheta(bRec.wo) <= 0) {
+			//printf("Disney: Returned zero: wi.z()=%.2f - wo.z()=%.2f\n", Frame::cosTheta(bRec.wi), Frame::cosTheta(bRec.wo));
 			return Color3f(0.0f);
-
+		}
 		// Implemented according to the paper "Physically-Based Shading at Disney" from Brent Burley
 
 		// Normal is 0,0,1 in the local coordinates
@@ -80,22 +83,22 @@ public:
 
 		// Specular D
 		float ratSpec = 0.08 * m_specular;
-		Color3f colSpec = ((Color3f(1.0f) * (m_specularTint - 1.0f) + colTint * m_specularTint) * (1.0f - m_metallic)) + (m_baseColor * m_metallic);
+		Color3f colSpec = ((ratSpec * (Color3f(1.0f) * (1.0f - m_specularTint) + colTint * m_specularTint)) * (1.0f - m_metallic)) + (m_baseColor * m_metallic);
 		// Primary lobe (metallic, anisotropic, GTR with g=2)
 		// TODO: Anisotropy
-		float anisoAsp = sqrt(1.0f - 0.9f * m_anisotropic);
+		/*float anisoAsp = sqrt(1.0f - 0.9f * m_anisotropic);
 		float ax = std::max(0.001f, (m_roughness * m_roughness) / anisoAsp);
-		float ay = std::max(0.001f, (m_roughness * m_roughness) * anisoAsp);
+		float ay = std::max(0.001f, (m_roughness * m_roughness) * anisoAsp);*/
 		/*float dt1 = 1;
 		float DAnisoGTR2 = 1.0f / (M_PI * ax * ay * dt1);*/
 		float r2 = m_roughness * m_roughness;
 		float tGTR2 = 1.0f + (r2 - 1) * cosThNH * cosThNH;
-		float dGTR2 = r2 / (M_PI * tGTR2 * tGTR2);
+		float dGTR2 = (tGTR2 != 0.0f) ? r2 / (M_PI * tGTR2 * tGTR2) : 0.0f;
 		// Secondary lobe (clearcoat, isotropic, GTR with g=1)
 		float factCC = 0.1f * (1.0f - m_clearcoatGloss) + 0.001f;
 		float f2 = factCC * factCC;
 		float tGTR1 = 1.0f + (f2 - 1.0f) * cosThNH * cosThNH;
-		float dGTR1 = (f2 - 1.0f) / (M_PI * log(f2) * tGTR1);
+		float dGTR1 = (tGTR1 != 0.0f) ? (f2 - 1.0f) / (M_PI * log(f2) * tGTR1) : 0.0f;
 
 		// Specular F
 		Color3f specF = (colSpec * (1.0f - sFresL)) + (Color3f(1.0f) * sFresL);
@@ -112,23 +115,117 @@ public:
 		float ccG = tGGX1 * tGGX2;
 
 		// Combine the results of the different aspects (diffuse, specular, clearcoat)
-		return colDiff + (dGTR2 * specF * specG) + 0.25f * m_clearcoat * (dGTR1 * ccF * ccG);
+		Color3f res = colDiff + (dGTR2 * specF * specG) + 0.25f * m_clearcoat * (dGTR1 * ccF * ccG);
+		//printf("Disney: Returned color: %.2f, %.2f, %.2f\n", res.x(), res.y(), res.z());
+		if (res.x() != res.x())
+			printf("Result of DISNEY is NAN! GTR2:%.2f with %.2f\n", dGTR2, tGTR2);
+		return res;
 	}
 
 	virtual float pdf(const BSDFQueryRecord &bRec) const override {
 		if (Frame::cosTheta(bRec.wi) <= 0 || Frame::cosTheta(bRec.wo) <= 0)
 			return 0.0f;
 
-		// The chosen pdf is (as recommended in the paper) pdf_h = D(theta_h) * cos(theta_h)
-		
+		// The chosen pdf is (as recommended in the paper) pdf_h = D(theta_h) * cos(theta_h) with different parameters
+		// which describe the different layers (diffuse, specular, clearcoat)
 
+		// The total probability of the given sample is the pdf of the specific layer wighted by the probability of sampling it (\ref sample())
+		// The weights sum up to 1.0f
+		float wCC = 0.25f * m_clearcoat;
+		float wS = m_metallic / (1.0f - 0.25f * m_clearcoat);
+		float wD = 1.0f - (wCC + wS);
 
-		throw NoriException("TO IMPLEMENT!");
+		float alpha = m_roughness * m_roughness;
+		float res = wD * (INV_PI * Frame::cosTheta(bRec.wo)) + wS * Warp::squareToGTR2Pdf(bRec.wo, alpha) + wCC * Warp::squareToGTR1Pdf(bRec.wo, alpha);
+		//printf("Disney: Returned pdf: %.4f\n", res);
+		if (res != res)
+			printf("DISNEY pdf is NAN!\n");
+		return res;
 	}
 
 	virtual Color3f sample(BSDFQueryRecord &bRec, const Point2f &sample) const override {
+		if (Frame::cosTheta(bRec.wi) <= 0)
+			return Color3f(0.0f);
 
-		throw NoriException("TO IMPLEMENT!");
+		bRec.measure = ESolidAngle;
+
+		Point2f rnd = Point2f(sample.x(), sample.y());
+
+		// Depending on the different parameters describing the material, the direction is sampled from
+		// either the diffuse, specular or clearcoat layer according to the distributions of each.
+
+		// Test if sampling clearcoat (following the influence of the parameter on the brdf value)
+		if (rnd.x() <= m_clearcoat * 0.25f) {
+			// Readjust the sample.x() (is in [0, 0.25f * m_clearcoat]
+			rnd.x() = (rnd.x() / (0.25f * m_clearcoat));
+
+			// Sampling clearcoat layer
+			// (Secondary lobe with GTR1)
+			Vector3f wh = Warp::squareToGTR1(rnd, m_roughness * m_roughness);
+			// Get the light-vector by mirroring the view-vector on the received half-vector
+			bRec.wo = ((2.f * wh.dot(bRec.wi) * wh) - bRec.wi).normalized();
+
+			// Relative index of refraction: no change
+			bRec.eta = 1.0f;
+
+			// Check if direction above/below surface
+			if (Frame::cosTheta(bRec.wo) <= 0) {
+				// Below surface - reject sample by returning 0
+				return Color3f(0.0f);
+			}
+
+		}
+		else {
+			// readjust rnd.x()
+			rnd.x() = ((rnd.x() - (0.25f * m_clearcoat)) / (1.0f - (0.25f * m_clearcoat)));
+
+
+			// Sampling diffuse or specular - check which one
+			if (rnd.x() <= m_metallic) {
+				// Sampling metallic
+				// Adjust sample
+				rnd.x() = (rnd.x() / (m_metallic));
+
+				// Sample from the distribution described by the brdf's parameters
+				// (GTR2 distribution)
+				Vector3f wh = Warp::squareToGTR2(rnd, m_roughness * m_roughness);
+				// Get the light-vector by mirroring the view-vector on the received half-vector
+				bRec.wo = ((2.f * wh.dot(bRec.wi) * wh) - bRec.wi).normalized();
+
+				// Relative index of refraction: no change
+				bRec.eta = 1.0f;
+
+				// Check if direction above/below surface
+				if (Frame::cosTheta(bRec.wo) <= 0) {
+					// Below surface - reject sample by returning 0
+					return Color3f(0.0f);
+				}
+
+			}
+			else {
+				// Sampling diffuse
+				// Adjust rnd.x()
+				rnd.x() = ((rnd.x() - m_metallic) / (1.0f - m_metallic));
+
+				// Sample from a uniform hemisphere
+				bRec.wo = Warp::squareToCosineHemisphere(sample);
+
+				// Relative index of refraction: no change
+				bRec.eta = 1.0f;
+
+			}
+		}
+
+		// Return brdf
+		float pdfS = pdf(bRec);
+		float cT = Frame::cosTheta(bRec.wo);
+
+		if (pdfS > 0.0f && cT >= 0.0f) {
+			return (eval(bRec) * cT) / pdfS;
+		}
+		else {
+			return Color3f(0.0f);
+		}
 
 	}
 

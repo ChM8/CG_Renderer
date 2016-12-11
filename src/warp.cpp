@@ -172,4 +172,60 @@ Vector3f Warp::squareToUniformTriangle(const Point2f &sample) {
     return Vector3f(u,v,1.f-u-v);
 }
 
+Vector3f Warp::squareToGTR1(const Point2f & sample, float alpha)
+{
+	float phi = 2 * M_PI * sample.x();
+	float th = 0.0f;
+	if (alpha < 1.0f)
+		th = acos(sqrt((1.0f - pow((alpha * alpha), 1.0f - sample.y())) / (1.0f - alpha * alpha)));
+	else
+		th = M_PI / 2.0f;
+
+	float x = sin(th) * sin(phi);
+	float y = sin(th) * cos(phi);
+	float z = cos(th);
+
+	return Vector3f(x, y, z);
+}
+
+float Warp::squareToGTR1Pdf(const Vector3f & m, float alpha)
+{
+	float diff = abs(m.x()*m.x() + m.y()*m.y() + m.z()*m.z() - 1.0f);
+	float cosT = m.normalized().z();
+	if ((diff <= 0.0001f) && (cosT >= 0.0f)) {
+		float f1 = (alpha * alpha - 1.0f) / (M_PI * std::log(alpha * alpha));
+		float f2 = 1.0f / (1.0f + (alpha * alpha - 1.0f) * cosT * cosT);
+		return f1 * f2 * cosT;
+	}
+	else {
+		return 0.0f;
+	}
+}
+
+Vector3f Warp::squareToGTR2(const Point2f & sample, float alpha)
+{
+	float phi = 2 * M_PI * sample.x();
+	float th = acos(sqrt((1.0f - sample.y()) / (1.0f + (alpha * alpha - 1.0f) * sample.y())));
+
+	float x = sin(th) * sin(phi);
+	float y = sin(th) * cos(phi);
+	float z = cos(th);
+
+	return Vector3f(x, y, z);
+}
+
+float Warp::squareToGTR2Pdf(const Vector3f & m, float alpha)
+{
+	float diff = abs(m.x()*m.x() + m.y()*m.y() + m.z()*m.z() - 1.0f);
+	float cosT = m.normalized().z();
+	if ((diff <= 0.0001f) && (cosT >= 0.0f || (cosT > 0.0f && alpha == 1.0f))) {
+		float f1 = alpha * alpha * INV_PI;
+		float f2 = 1.0f / (1.0f + (alpha * alpha - 1.0f) * cosT * cosT);
+		return f1 * f2 * f2 * cosT;
+	}
+	else {
+		return 0.0f;
+	}
+}
+
 NORI_NAMESPACE_END

@@ -17,7 +17,7 @@ public:
 	Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
 
 		// Define exitant radiance (black default)
-		Color3f exRad = Color3f(0.0f);
+		Color3f exRad = Color3f(0.5f);
 
 		// Initial Throughput
 		Color3f t = Color3f(1.f);
@@ -116,6 +116,9 @@ public:
 			// Add the mats-contribution previously computed
 			exRad += wMat * t.cwiseProduct(matsEmEval);
 
+			if (!exRad.isValid())
+				printf("Not valid exRad!\n");
+
 			
 			// Success-probability is the throughput (decreasing with the contribution)
 			float succProb = (it >= minIt) ? std::min(t.maxCoeff(), 0.999f) : 1.0f;
@@ -144,10 +147,14 @@ public:
 			// (bsdfRes from sample is already divided by PDF)
 			float cosThetaInWo = (n.norm() * woWC.norm() != 0.0f) ? n.dot(woWC) / (n.norm() * woWC.norm()) : 0.0f;
 			t = t.cwiseProduct(bsdfRes);// * cosThetaInWo;
-
+			if (t.x() != t.x())
+				printf("T is NAN!\n");
 			it++;
 		}
 		
+		if (!exRad.isValid())
+			printf("Not valid exRad!\n");
+
 		return exRad;
 
 	}

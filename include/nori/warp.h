@@ -87,6 +87,18 @@ public:
 
     static Vector3f squareToUniformTriangle(const Point2f &sample);
 
+	/// Warp according to GTR1 (gamma = 1) * cosine on uniform hemisphere with given parameter alpha
+	static Vector3f squareToGTR1(const Point2f &sample, float alpha);
+
+	/// Probability density of \ref squareToGTR1()
+	static float squareToGTR1Pdf(const Vector3f &m, float alpha);
+
+	/// Warp according to GTR2 (gamma = 2) * cosine on uniform hemisphere with given parameter alpha
+	static Vector3f squareToGTR2(const Point2f &sample, float alpha);
+
+	/// Probability density of \ref squareToGTR2()
+	static float squareToGTR2Pdf(const Vector3f &m, float alpha);
+
 };
 
 NORI_NAMESPACE_END

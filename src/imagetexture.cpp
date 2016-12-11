@@ -88,7 +88,7 @@ Color3f ImageTexture<Color3f>::eval(const Point2f & uv) {
 		return Color3f(0.0f, 1.0f, 0.0f);
 
 	// Read out the pixel values - may not be the most efficient method (running through the vector many times)
-	// Bilinear filter
+	// Bilinear filtering
 	int x1 = std::floor(uv.x() * m_width);
 	int x2 = std::ceil(uv.x() * m_width);
 	int y1 = std::ceil(uv.y() * m_height);
