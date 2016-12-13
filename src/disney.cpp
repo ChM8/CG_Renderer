@@ -24,7 +24,7 @@ public:
 		m_specularTint = propList.getFloat("specularTint", 0.0f);
 
 		/* m_roughness - default 0 */
-		m_roughness = propList.getFloat("m_roughness", 0.5f);
+		m_roughness = propList.getFloat("roughness", 0.5f);
 
 		/* anisotropic - default 0 */
 		m_anisotropic = propList.getFloat("anisotropic", 0.0f);
@@ -62,30 +62,34 @@ public:
 		float cosThDH = bRec.wi.dot(h) / (bRec.wi.norm());
 
 		// Diffuse part
-		float FD90 = 0.5 + 2 * cosThDH * cosThDH * m_roughness;
-		float FD = (1.0f + (FD90 - 1.0f) * pow((1.0f - cosThNL), 5)) * (1.0f + (FD90 - 1.0f) * pow((1.0f - cosThNV), 5));
+		float fd90 = 0.5 + 2 * cosThDH * cosThDH * m_roughness;
+		float fd = (1.0f + (fd90 - 1.0f) * pow((1.0f - cosThNL), 5)) * (1.0f + (fd90 - 1.0f) * pow((1.0f - cosThNV), 5));
 
 		// m_subsurface model of disney brdf - based on Hanrahan-Kruger
-		float FSS90 = cosThDH * cosThDH * m_roughness;
-		float FSS = (1.0f + (FSS90 - 1.0f) * pow((1.0f - cosThNL), 5)) * (1.0f + (FSS90 - 1.0f) * pow((1.0f - cosThNV), 5)); // TODO: Correct implementation?
-		float SS = 1.25 * (FSS * (1.0f / (cosThNL + cosThNV) - 0.5f) + 0.5f);
+		float fss90 = cosThDH * cosThDH * m_roughness;
+		float fss = (1.0f + (fss90 - 1.0f) * pow((1.0f - cosThNL), 5)) * (1.0f + (fss90 - 1.0f) * pow((1.0f - cosThNV), 5)); // TODO: Correct implementation?
+		float ss = 1.25 * (fss * (1.0f / (cosThNL + cosThNV) - 0.5f) + 0.5f);
 
-		Color3f colTint = m_baseColor;
+		float lum = (Color3f(0.2126f, 0.7152f, 0.0722f) * m_baseColor).sum();
+		Color3f colTint = (lum > 0) ? m_baseColor / lum : Color3f(1.f);
 		float sFresL = pow((1.0f - cosThDH), 5);
 		// Ensure that the Schlick-term is in [0,1]
 		sFresL = (sFresL > 1.0f) ? 1.0f : ((sFresL < 0.0f) ? 0.0f : sFresL);
 		
 		// Sheen
-		Color3f colSheen = m_sheen * sFresL * (Color3f(1.0f) * (1.0f - m_sheenTint) + (colTint * m_sheenTint));
+		Color3f colSheen = m_sheen * sFresL * linInt(Color3f(1.0f), colTint, m_sheenTint);
 
 		// Linear blending of subsurface approx. (note: metallic has no diffuse) and adding sheen
-		Color3f colDiff = ((INV_PI * m_baseColor * (FD * (1.0f - m_subsurface) + SS * m_subsurface)) + colSheen) * (1.0f - m_metallic);
+		Color3f colDiff = INV_PI * m_baseColor * linInt(fd, ss, m_subsurface);
+		colDiff += colSheen;
+		colDiff *= (1.0f - m_metallic); // black if full metallic
 
 		// Specular D
 		float ratSpec = 0.08 * m_specular;
-		Color3f colSpec = ((ratSpec * (Color3f(1.0f) * (1.0f - m_specularTint) + colTint * m_specularTint)) * (1.0f - m_metallic)) + (m_baseColor * m_metallic);
+		Color3f tCS = ratSpec * linInt(Color3f(1.0f), colTint, m_specularTint);
+		Color3f colSpec = linInt(tCS, m_baseColor, m_metallic);
 		// Primary lobe (metallic, anisotropic, GTR with g=2)
-		// TODO: Anisotropy
+		// TODO: Anisotropy (where to compute tangent, bitangent?)
 		/*float anisoAsp = sqrt(1.0f - 0.9f * m_anisotropic);
 		float ax = std::max(0.001f, (m_roughness * m_roughness) / anisoAsp);
 		float ay = std::max(0.001f, (m_roughness * m_roughness) * anisoAsp);*/
@@ -95,7 +99,7 @@ public:
 		float tGTR2 = 1.0f + (r2 - 1) * cosThNH * cosThNH;
 		float dGTR2 = (tGTR2 != 0.0f) ? r2 / (M_PI * tGTR2 * tGTR2) : 0.0f;
 		// Secondary lobe (clearcoat, isotropic, GTR with g=1)
-		float factCC = 0.1f * (1.0f - m_clearcoatGloss) + 0.001f;
+		float factCC = 0.1f * (1.0f - m_clearcoatGloss) + 0.001f * m_clearcoatGloss;
 		float f2 = factCC * factCC;
 		float tGTR1 = 1.0f + (f2 - 1.0f) * cosThNH * cosThNH;
 		float dGTR1 = (tGTR1 != 0.0f) ? (f2 - 1.0f) / (M_PI * log(f2) * tGTR1) : 0.0f;
@@ -122,9 +126,24 @@ public:
 		return res;
 	}
 
+	// Linearly interpolate from float value1 to value2, as defined by factor in [0,1]
+	virtual float linInt(float value1, float value2, float factor) const {
+		return (value1 * (1.0f - factor) + value2 * factor);
+	}
+	// Linearly interpolate from color value1 to value2, as defined by factor in [0,1]
+	virtual Color3f linInt(const Color3f value1, const Color3f value2, const float factor) const {
+		return (value1 * (1.0f - factor) + value2 * factor);
+	}
+
 	virtual float pdf(const BSDFQueryRecord &bRec) const override {
 		if (Frame::cosTheta(bRec.wi) <= 0 || Frame::cosTheta(bRec.wo) <= 0)
 			return 0.0f;
+
+		// compute half-vector (sampled it, not wi/wo)
+		Vector3f vh = (bRec.wi + bRec.wo) / (bRec.wi + bRec.wo).norm();
+		float cosT = Frame::cosTheta(vh);
+
+
 
 		// The chosen pdf is (as recommended in the paper) pdf_h = D(theta_h) * cos(theta_h) with different parameters
 		// which describe the different layers (diffuse, specular, clearcoat)
@@ -136,10 +155,21 @@ public:
 		float wD = 1.0f - (wCC + wS);
 
 		float alpha = m_roughness * m_roughness;
-		float res = wD * (INV_PI * Frame::cosTheta(bRec.wo)) + wS * Warp::squareToGTR2Pdf(bRec.wo, alpha) + wCC * Warp::squareToGTR1Pdf(bRec.wo, alpha);
+		float f1 = alpha * alpha * INV_PI;
+		float f2 = (1.0f + (alpha * alpha - 1.0f) * cosT * cosT);
+		float GTR2pdf = (f2 != 0.0f) ? f1 / (f2 * f2) * cosT : 0.0f;
+
+		float factCC = 0.1f * (1.0f - m_clearcoatGloss) + 0.001f * m_clearcoatGloss;
+		alpha = factCC * factCC;
+		// Careful with m_clearcoatGloss == 0.0f -> log
+		f1 = (m_clearcoatGloss != 0.0f) ? (alpha * alpha - 1.0f) / (M_PI * std::log(alpha * alpha)) : 0.0f;
+		f2 = 1.0f / (1.0f + (alpha * alpha - 1.0f) * cosT * cosT);
+		float GTR1pdf = f1 * f2 * cosT;
+
+		float res = wD * (INV_PI * Frame::cosTheta(bRec.wo)) + wS * GTR2pdf + wCC * GTR1pdf;
 		//printf("Disney: Returned pdf: %.4f\n", res);
 		if (res != res)
-			printf("DISNEY pdf is NAN!\n");
+			printf("DISNEY pdf is NAN! %.2f - %.2f\n", f1, f2);
 		return res;
 	}
 
@@ -155,7 +185,7 @@ public:
 		// either the diffuse, specular or clearcoat layer according to the distributions of each.
 
 		// Test if sampling clearcoat (following the influence of the parameter on the brdf value)
-		if (rnd.x() <= m_clearcoat * 0.25f) {
+		if (rnd.x() < m_clearcoat * 0.25f) {
 			// Readjust the sample.x() (is in [0, 0.25f * m_clearcoat]
 			rnd.x() = (rnd.x() / (0.25f * m_clearcoat));
 
@@ -181,7 +211,7 @@ public:
 
 
 			// Sampling diffuse or specular - check which one
-			if (rnd.x() <= m_metallic) {
+			if (rnd.x() < m_metallic) {
 				// Sampling metallic
 				// Adjust sample
 				rnd.x() = (rnd.x() / (m_metallic));

@@ -17,7 +17,7 @@ public:
 	Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
 
 		// Define exitant radiance (black default)
-		Color3f exRad = Color3f(0.5f);
+		Color3f exRad = Color3f(0.0f);
 
 		// Initial Throughput
 		Color3f t = Color3f(1.f);

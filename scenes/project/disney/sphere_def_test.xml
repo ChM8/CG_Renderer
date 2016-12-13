@@ -1,25 +1,25 @@
 <scene>
 	<!-- Independent sample generator, user-selected samples per pixel -->
 	<sampler type="independent">
-		<integer name="sampleCount" value="32"/>
+		<integer name="sampleCount" value="60"/>
 	</sampler>
 
 	<!-- Use a direct illumination integrator -->
 	<integrator type="path_mis">
-		<boolean name="renderEmitter" value="False"/>
+		<boolean name="renderEmitter" value="True"/>
 	</integrator>
 
 	<!-- Render the scene as viewed by a perspective camera -->
 	<camera type="perspective">
 		<transform name="toWorld">
-			<lookat target="0,0,1" origin="5,5,1" up="0,0,1"/>
+			<lookat target="2,0,1" origin="2,6,1" up="0,0,1"/>
 		</transform>
 
 		<!-- Field of view: 40 degrees -->
-		<float name="fov" value="40"/>
+		<float name="fov" value="90"/>
 
 		<!-- 512 x 512 pixels -->
-		<integer name="width" value="512"/>
+		<integer name="width" value="1024"/>
 		<integer name="height" value="512"/>
 	</camera>
 
@@ -27,14 +27,14 @@
 	<mesh type="obj">
 		<string name="filename" value="sphere_3dsM.obj"/>
 		<bsdf type="disney">
-			<color name="baseColor" value="0.4 0.2 0.2"/>
-			<float name="subsurface" value="0.0" />
-			<float name="metallic" value="0.2" />
+			<color name="baseColor" value="0.5 0 0"/>
+			<float name="subsurface" value="0" />
+			<float name="metallic" value="0.01" />
 			<float name="specular" value="1" />
-			<float name="specularTint" value="1" />
-			<float name="m_roughness" value="1.0" />
+			<float name="specularTint" value="0" />
+			<float name="roughness" value="0.1" />
 			<float name="anisotropic" value="0.0" />
-			<float name="sheen" value="0.0" />
+			<float name="sheen" value="0" />
 			<float name="sheenTint" value="0.5" />
 			<float name="clearcoat" value="0.0" />
 			<float name="clearcoatGloss" value="0.0" />
@@ -43,6 +43,29 @@
 			<scale value="1.5,1.5,1.5"/>
 			<rotate axis="0,0,1" angle="210"/>
 			<translate value="0,0,1"/>
+		</transform>
+	</mesh>
+
+		<!-- Load a triangulated sphere -->
+	<mesh type="obj">
+		<string name="filename" value="sphere_3dsM.obj"/>
+		<bsdf type="disney">
+			<color name="baseColor" value="0.5 0 0"/>
+			<float name="subsurface" value="0" />
+			<float name="metallic" value="0.01" />
+			<float name="specular" value="1" />
+			<float name="specularTint" value="0" />
+			<float name="roughness" value="0.1" />
+			<float name="anisotropic" value="0.0" />
+			<float name="sheen" value="0" />
+			<float name="sheenTint" value="0.5" />
+			<float name="clearcoat" value="0.0" />
+			<float name="clearcoatGloss" value="0.0" />
+		</bsdf>
+		<transform name="toWorld">
+			<scale value="1.5,1.5,1.5"/>
+			<rotate axis="0,0,1" angle="210"/>
+			<translate value="4,0,1"/>
 		</transform>
 	</mesh>
 
@@ -55,9 +78,9 @@
 		</bsdf>-->
 
 		<transform name="toWorld">
-			<scale value="10,1,10"/>
+			<scale value="5,1,5"/>
 			<rotate axis="1,0,0" angle="90"/>
-			<translate value="0,0,-2"/>
+			<translate value="2,0,-2"/>
 		</transform>
 		<emitter type="area">
 			<color name="radiance" value="1 1 1"/>
@@ -73,9 +96,9 @@
 		</bsdf>-->
 
 		<transform name="toWorld">
-			<scale value="10,1,10"/>
+			<scale value="5,1,5"/>
 			<rotate axis="1,0,0" angle="270"/>
-			<translate value="0,0,3"/>
+			<translate value="2,0,3"/>
 		</transform>
 		<emitter type="area">
 			<color name="radiance" value="1 1 1"/>

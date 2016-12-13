@@ -192,7 +192,7 @@ float Warp::squareToGTR1Pdf(const Vector3f & m, float alpha)
 {
 	float diff = abs(m.x()*m.x() + m.y()*m.y() + m.z()*m.z() - 1.0f);
 	float cosT = m.normalized().z();
-	if ((diff <= 0.0001f) && (cosT >= 0.0f)) {
+	if ((diff <= 0.0001f) && (cosT >= 0.0f) && (alpha > 0.0f)) {
 		float f1 = (alpha * alpha - 1.0f) / (M_PI * std::log(alpha * alpha));
 		float f2 = 1.0f / (1.0f + (alpha * alpha - 1.0f) * cosT * cosT);
 		return f1 * f2 * cosT;
