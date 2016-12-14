@@ -63,26 +63,30 @@ public:
 
 		// Diffuse part
 		float fd90 = 0.5 + 2 * cosThDH * cosThDH * m_roughness;
-		float fd = (1.0f + (fd90 - 1.0f) * pow((1.0f - cosThNL), 5)) * (1.0f + (fd90 - 1.0f) * pow((1.0f - cosThNV), 5));
+		float shNL = pow((1.0f - cosThNL), 5);
+		float shNV = pow((1.0f - cosThNV), 5);
+		//float fd = (1.0f + (fd90 - 1.0f) * pow((1.0f - cosThNL), 5)) * (1.0f + (fd90 - 1.0f) * pow((1.0f - cosThNV), 5));
+		float fd = ((1.0f - shNL) + fd90 * shNL) + ((1.0f - shNV) + fd90 * shNV);
 
 		// m_subsurface model of disney brdf - based on Hanrahan-Kruger
 		float fss90 = cosThDH * cosThDH * m_roughness;
-		float fss = (1.0f + (fss90 - 1.0f) * pow((1.0f - cosThNL), 5)) * (1.0f + (fss90 - 1.0f) * pow((1.0f - cosThNV), 5)); // TODO: Correct implementation?
+		//float fss = (1.0f + (fss90 - 1.0f) * pow((1.0f - cosThNL), 5)) * (1.0f + (fss90 - 1.0f) * pow((1.0f - cosThNV), 5)); // TODO: Correct implementation?
+		float fss = ((1.0f - shNL) + fss90 * shNL) + ((1.0f - shNV) + fss90 * shNV);
 		float ss = 1.25 * (fss * (1.0f / (cosThNL + cosThNV) - 0.5f) + 0.5f);
 
 		float lum = (Color3f(0.2126f, 0.7152f, 0.0722f) * m_baseColor).sum();
-		Color3f colTint = (lum > 0) ? m_baseColor / lum : Color3f(1.f);
+		Color3f colTint = (lum > 0.0f) ? Color3f(m_baseColor.x()/lum, m_baseColor.y()/lum, m_baseColor.z()/lum) : Color3f(1.0f);
 		float sFresL = pow((1.0f - cosThDH), 5);
 		// Ensure that the Schlick-term is in [0,1]
 		sFresL = (sFresL > 1.0f) ? 1.0f : ((sFresL < 0.0f) ? 0.0f : sFresL);
 		
-		// Sheen
+		// Sheen color
 		Color3f colSheen = m_sheen * sFresL * linInt(Color3f(1.0f), colTint, m_sheenTint);
 
-		// Linear blending of subsurface approx. (note: metallic has no diffuse) and adding sheen
+		// Diffuse: Linear blending of subsurface approx. (note: metallic has no diffuse) and adding sheen
 		Color3f colDiff = INV_PI * m_baseColor * linInt(fd, ss, m_subsurface);
-		colDiff += colSheen;
-		colDiff *= (1.0f - m_metallic); // black if full metallic
+		colDiff = colDiff + colSheen;
+		colDiff = colDiff * (1.0f - m_metallic); // black if full metallic
 
 		// Specular D
 		float ratSpec = 0.08 * m_specular;
@@ -95,24 +99,24 @@ public:
 		float ay = std::max(0.001f, (m_roughness * m_roughness) * anisoAsp);*/
 		/*float dt1 = 1;
 		float DAnisoGTR2 = 1.0f / (M_PI * ax * ay * dt1);*/
-		float r2 = m_roughness * m_roughness;
-		float tGTR2 = 1.0f + (r2 - 1) * cosThNH * cosThNH;
-		float dGTR2 = (tGTR2 != 0.0f) ? r2 / (M_PI * tGTR2 * tGTR2) : 0.0f;
-		// Secondary lobe (clearcoat, isotropic, GTR with g=1)
-		float factCC = 0.1f * (1.0f - m_clearcoatGloss) + 0.001f * m_clearcoatGloss;
-		float f2 = factCC * factCC;
-		float tGTR1 = 1.0f + (f2 - 1.0f) * cosThNH * cosThNH;
-		float dGTR1 = (tGTR1 != 0.0f) ? (f2 - 1.0f) / (M_PI * log(f2) * tGTR1) : 0.0f;
+		float tGTR2 = 1.0f + ((m_roughness * m_roughness) - 1.0f) * cosThNH * cosThNH;
+		float dGTR2 = (tGTR2 != 0.0f) ? (m_roughness * m_roughness) / (M_PI * tGTR2 * tGTR2) : 0.0f;
+		// Secondary lobe, clearcoat (isotropic, GTR with g=1)
+		float factCC = linInt(0.1f, 0.001f, m_clearcoatGloss);
+		float tGTR1 = 1.0f + ((factCC * factCC) - 1.0f) * cosThNH * cosThNH;
+		float dGTR1 = ((factCC * factCC) - 1.0f) / (M_PI * log((factCC * factCC)) * tGTR1);
 
 		// Specular F
-		Color3f specF = (colSpec * (1.0f - sFresL)) + (Color3f(1.0f) * sFresL);
-		float ccF = (0.04f * (1.0f - sFresL)) + (1.0f * sFresL);
+		Color3f specF = linInt(colSpec, Color3f(1.0f), sFresL);
+		float ccF = linInt(0.04f, 1.0f, sFresL);
 
 		// Specular G
+		// Specular
 		float gR2 = (m_roughness * 0.5f + 0.5f) * (m_roughness * 0.5f + 0.5f);
 		float tGGX1 = 1.0f / (cosThNL + sqrt(gR2 + (cosThNL * cosThNL) - gR2 * (cosThNL * cosThNL)));
 		float tGGX2 = 1.0f / (cosThNV + sqrt(gR2 + (cosThNV * cosThNV) - gR2 * (cosThNV * cosThNV)));
 		float specG = tGGX1 * tGGX2;
+		// Clearcoat
 		float a2 = 0.25f * 0.25f;
 		tGGX1 = 1.0f / (cosThNL + sqrt(a2 + (cosThNL * cosThNL) - a2 * (cosThNL * cosThNL)));
 		tGGX2 = 1.0f / (cosThNV + sqrt(a2 + (cosThNV * cosThNV) - a2 * (cosThNV * cosThNV)));
@@ -124,6 +128,7 @@ public:
 		if (res.x() != res.x())
 			printf("Result of DISNEY is NAN! GTR2:%.2f with %.2f\n", dGTR2, tGTR2);
 		return res;
+		return 0.0f;
 	}
 
 	// Linearly interpolate from float value1 to value2, as defined by factor in [0,1]
@@ -143,12 +148,10 @@ public:
 		Vector3f vh = (bRec.wi + bRec.wo) / (bRec.wi + bRec.wo).norm();
 		float cosT = Frame::cosTheta(vh);
 
-
-
 		// The chosen pdf is (as recommended in the paper) pdf_h = D(theta_h) * cos(theta_h) with different parameters
 		// which describe the different layers (diffuse, specular, clearcoat)
 
-		// The total probability of the given sample is the pdf of the specific layer wighted by the probability of sampling it (\ref sample())
+		// The total probability of the given sample is the pdf of the specific layer weighted by the probability of sampling it (\ref sample())
 		// The weights sum up to 1.0f
 		float wCC = 0.25f * m_clearcoat;
 		float wS = m_metallic / (1.0f - 0.25f * m_clearcoat);
@@ -157,14 +160,14 @@ public:
 		float alpha = m_roughness * m_roughness;
 		float f1 = alpha * alpha * INV_PI;
 		float f2 = (1.0f + (alpha * alpha - 1.0f) * cosT * cosT);
-		float GTR2pdf = (f2 != 0.0f) ? f1 / (f2 * f2) * cosT : 0.0f;
+		// f2 is only 0 when roughness is 0 and half vector equals the normal
+		float GTR2pdf = (f2 != 0.0f) ? (f1 / (f2 * f2)) * cosT : 1.0f;
+		GTR2pdf = (GTR2pdf > 1.0f) ? 1.0f : GTR2pdf;
 
-		float factCC = 0.1f * (1.0f - m_clearcoatGloss) + 0.001f * m_clearcoatGloss;
-		alpha = factCC * factCC;
-		// Careful with m_clearcoatGloss == 0.0f -> log
-		f1 = (m_clearcoatGloss != 0.0f) ? (alpha * alpha - 1.0f) / (M_PI * std::log(alpha * alpha)) : 0.0f;
-		f2 = 1.0f / (1.0f + (alpha * alpha - 1.0f) * cosT * cosT);
-		float GTR1pdf = f1 * f2 * cosT;
+		alpha = linInt(0.1f, 0.001f, m_clearcoatGloss);
+		f1 = (alpha * alpha - 1.0f) / (M_PI * std::log(alpha * alpha));
+		f2 = (1.0f + (alpha * alpha - 1.0f) * cosT * cosT);
+		float GTR1pdf = (f1 / f2) * cosT;
 
 		float res = wD * (INV_PI * Frame::cosTheta(bRec.wo)) + wS * GTR2pdf + wCC * GTR1pdf;
 		//printf("Disney: Returned pdf: %.4f\n", res);
@@ -190,8 +193,8 @@ public:
 			rnd.x() = (rnd.x() / (0.25f * m_clearcoat));
 
 			// Sampling clearcoat layer
-			// (Secondary lobe with GTR1)
-			Vector3f wh = Warp::squareToGTR1(rnd, m_roughness * m_roughness);
+			// (Secondary lobe with GTR1, specific alpha)
+			Vector3f wh = Warp::squareToGTR1(rnd, linInt(0.1f, 0.001f, m_clearcoatGloss));
 			// Get the light-vector by mirroring the view-vector on the received half-vector
 			bRec.wo = ((2.f * wh.dot(bRec.wi) * wh) - bRec.wi).normalized();
 
@@ -218,7 +221,11 @@ public:
 
 				// Sample from the distribution described by the brdf's parameters
 				// (GTR2 distribution)
-				Vector3f wh = Warp::squareToGTR2(rnd, m_roughness * m_roughness);
+				// If roughness is 0, halfvector is normal for proper reflection
+				Vector3f wh = Vector3f(0.0f, 0.0f, 0.1);
+				if (m_roughness != 0.0f) {
+					wh = Warp::squareToGTR2(rnd, m_roughness * m_roughness);
+				}
 				// Get the light-vector by mirroring the view-vector on the received half-vector
 				bRec.wo = ((2.f * wh.dot(bRec.wi) * wh) - bRec.wi).normalized();
 

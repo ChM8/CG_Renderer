@@ -129,6 +129,19 @@ public:
              << memString(m_F.size() * sizeof(uint32_t) +
                           sizeof(float) * (m_V.size() + m_N.size() + m_UV.size()))
              << ")" << endl;
+
+		// Get the normal map (if one is defined)
+		if (propList.has("normal_map")) {
+			PropertyList l;
+			l.setString("filename", propList.getString("image"));
+			m_normalMap = static_cast<Texture<Color3f> *>(NoriObjectFactory::createInstance("image_texture", l));
+			m_hasNormalMap = true;
+		}
+		else {
+			// No map
+			m_hasNormalMap = false;
+		}
+
     }
 
 protected:

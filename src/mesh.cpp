@@ -139,6 +139,16 @@ void Mesh::setHitInformation(uint32_t index, const Ray3f &ray, Intersection & it
                  bary.y() * m_UV.col(idx1) +
                  bary.z() * m_UV.col(idx2);
 
+	/* Compute the tangent/bitangent in direction of the texture axis u/v */
+	Vector3f dUV1 = m_UV.col(idx1) - m_UV.col(idx0);
+	Vector3f dUV2 = m_UV.col(idx2) - m_UV.col(idx0);
+	Vector3f dV1 = p1 - p0;
+	Vector3f dV2 = p2 - p0;
+
+	float temp = 1.0f / (dUV1.x() * dUV2.y() - dUV1.y() * dUV2.x());
+	Vector3f tangent = (dV1 * dUV2.y() - dV2 * dUV1.y()) * temp;
+	Vector3f bitangent = (dV2 * dUV2.x() - dV1 * dUV2.x()) * temp;
+
     /* Compute the geometry frame */
     its.geoFrame = Frame((p1-p0).cross(p2-p0).normalized());
 
@@ -148,11 +158,25 @@ void Mesh::setHitInformation(uint32_t index, const Ray3f &ray, Intersection & it
            tangents that are continuous across the surface. That
            means that this code will need to be modified to be able
            use anisotropic BRDFs, which need tangent continuity */
+		/* Adjusted those tangents */
 
-        its.shFrame = Frame(
-                (bary.x() * m_N.col(idx0) +
-                 bary.y() * m_N.col(idx1) +
-                 bary.z() * m_N.col(idx2)).normalized());
+		Normal3f normal = (bary.x() * m_N.col(idx0) +
+			bary.y() * m_N.col(idx1) +
+			bary.z() * m_N.col(idx2)).normalized();
+
+        its.shFrame = Frame(tangent, bitangent, normal);
+
+		if (m_hasNormalMap) {
+			// There is a normal map - adjust the current normal
+			Color3f colN = m_normalMap->eval(its.uv);
+			// Create a vector from the information of the normal map
+			Vector3f tN = Vector3f(colN.x() - 0.5f, colN.y() - 0.5f, colN.z() - 0.5f).normalized();
+			// Transform the new normal
+			Normal3f n = its.shFrame.toWorld(tN);
+
+			its.shFrame = Frame(tangent, bitangent, normal);
+		}
+
     } else {
         its.shFrame = its.geoFrame;
     }

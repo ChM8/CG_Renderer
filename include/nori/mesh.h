@@ -21,6 +21,7 @@
 
 #include <nori/shape.h>
 #include <nori/dpdf.h>
+#include <nori/texture.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -121,6 +122,8 @@ protected:
     MatrixXf      m_N;                   ///< Vertex normals
     MatrixXf      m_UV;                  ///< Vertex texture coordinates
     MatrixXu      m_F;                   ///< Faces
+	Texture<Color3f> * m_normalMap;      ///< Normal Map
+	bool m_hasNormalMap;                 ///< indicator of a valid normal map
 
     DiscretePDF m_pdf;
 };
