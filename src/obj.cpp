@@ -133,7 +133,7 @@ public:
 		// Get the normal map (if one is defined)
 		if (propList.has("normal_map")) {
 			PropertyList l;
-			l.setString("filename", propList.getString("image"));
+			l.setString("filename", propList.getString("normal_map"));
 			m_normalMap = static_cast<Texture<Color3f> *>(NoriObjectFactory::createInstance("image_texture", l));
 			m_hasNormalMap = true;
 		}
