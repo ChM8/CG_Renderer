@@ -26,7 +26,7 @@
 	<!-- Load a triangulated sphere -->
 	<mesh type="obj">
 		<string name="filename" value="sphere_3dsM.obj"/>
-		<string name="normal_map" value="normal_none.png"/>
+		<string name="normal_map" value="normal_test.png"/>
 		<bsdf type="diffuse">
 			<color name="albedo" value="0.5,0.5,0.5"/>
 		</bsdf>

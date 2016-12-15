@@ -12,7 +12,7 @@
 	<!-- Render the scene as viewed by a perspective camera -->
 	<camera type="perspective">
 		<transform name="toWorld">
-			<lookat target="0,0,2" origin="1,0,10" up="0,0,1"/>
+			<lookat target="-0.5,0,0" origin="2.5,0,4" up="0,0,1"/>
 		</transform>
 
 		<!-- Field of view: 40 degrees -->
@@ -25,8 +25,8 @@
 
 	<!-- Ground plane -->
 	<mesh type="obj">
-		<string name="filename" value="sphere_3dsM.obj"/>
-		<string name="normal_map" value="normal_none.png"/>
+		<string name="filename" value="plane_3dsM_90.obj"/>
+		<string name="normal_map" value="normal_test.png"/>
 
 		<bsdf type="diffuse">
 			<color name="albedo" value="0.5,0.5,0.5"/>
@@ -35,7 +35,7 @@
 		<transform name="toWorld">
 			<scale value="10,1,10"/>
 			<rotate axis="1,0,0" angle="90"/>
-			<translate value="0,0,-10"/>
+			<translate value="0,0,1"/>
 		</transform>
 	</mesh>
 
@@ -49,8 +49,8 @@
 
 		<transform name="toWorld">
 			<scale value="10,1,10"/>
-			<rotate axis="1,0,0" angle="270"/>
-			<translate value="0,0,20"/>
+			<rotate axis="1,0,0" angle="325"/>
+			<translate value="0,2,6"/>
 		</transform>
 		<emitter type="area">
 			<color name="radiance" value="1 1 1"/>
