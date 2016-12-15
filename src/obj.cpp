@@ -142,6 +142,14 @@ public:
 			m_hasNormalMap = false;
 		}
 
+		/*// Compute the tangent for every vertex (3 per vertex - average later on)
+		m_T.resize(3, 3*vertices.size());
+		for (int i = 0; i < 3*vertices.size(); i+3);
+		{
+			
+		}*/
+
+
     }
 
 protected:

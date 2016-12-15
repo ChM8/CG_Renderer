@@ -12,7 +12,7 @@
 	<!-- Render the scene as viewed by a perspective camera -->
 	<camera type="perspective">
 		<transform name="toWorld">
-			<lookat target="0,0,2" origin="0,0,10" up="0,0,1"/>
+			<lookat target="0,0,2" origin="1,0,10" up="0,0,1"/>
 		</transform>
 
 		<!-- Field of view: 40 degrees -->

@@ -77,6 +77,9 @@ public:
     /// Set intersection information: hit point, shading frame, UVs
     virtual void setHitInformation(uint32_t index, const Ray3f &ray, Intersection & its) const override;
 
+	/// Compute the tangent and bitangent of a given vertex
+	Frame computeTangents(Point3f p0, Point3f p1, Point3f p2, Point3f uv0, Point3f uv1, Point3f uv2, Normal3f n) const;
+
     /// Return the total number of vertices in this shape
     uint32_t getVertexCount() const { return (uint32_t) m_V.cols(); }
 
@@ -120,6 +123,7 @@ protected:
     std::string m_name;                  ///< Identifying name
     MatrixXf      m_V;                   ///< Vertex positions
     MatrixXf      m_N;                   ///< Vertex normals
+	//MatrixXf      m_T;					 ///< Vertex tangent
     MatrixXf      m_UV;                  ///< Vertex texture coordinates
     MatrixXu      m_F;                   ///< Faces
 	Texture<Color3f> * m_normalMap;      ///< Normal Map

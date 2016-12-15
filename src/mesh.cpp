@@ -139,15 +139,6 @@ void Mesh::setHitInformation(uint32_t index, const Ray3f &ray, Intersection & it
                  bary.y() * m_UV.col(idx1) +
                  bary.z() * m_UV.col(idx2);
 
-	/* Compute the tangent/bitangent in direction of the texture axis u/v */
-	Vector3f dUV1 = m_UV.col(idx1) - m_UV.col(idx0);
-	Vector3f dUV2 = m_UV.col(idx2) - m_UV.col(idx0);
-	Vector3f dV1 = p1 - p0;
-	Vector3f dV2 = p2 - p0;
-
-	float temp = 1.0f / (dUV1.x() * dUV2.y() - dUV1.y() * dUV2.x());
-	Vector3f tangent = (dV1 * dUV2.y() - dV2 * dUV1.y()) * temp;
-	Vector3f bitangent = (dV2 * dUV2.x() - dV1 * dUV2.x()) * temp;
 
     /* Compute the geometry frame */
     its.geoFrame = Frame((p1-p0).cross(p2-p0).normalized());
@@ -164,22 +155,48 @@ void Mesh::setHitInformation(uint32_t index, const Ray3f &ray, Intersection & it
 			bary.y() * m_N.col(idx1) +
 			bary.z() * m_N.col(idx2)).normalized();
 
-        its.shFrame = Frame(tangent, bitangent, normal);
+		Frame f = computeTangents(p0, p1, p2, m_UV.col(idx0), m_UV.col(idx1), m_UV.col(idx2), normal);
+		its.shFrame = f;
+
+		//printf("1. normal: %.2f, %.2f, %.2f\n", its.shFrame.n.x(), its.shFrame.n.y(), its.shFrame.n.z());
+		//printf("Tangent-Test %.2f\n", its.shFrame.s.dot(its.shFrame.t));
 
 		if (m_hasNormalMap) {
 			// There is a normal map - adjust the current normal
 			Color3f colN = m_normalMap->eval(its.uv);
 			// Create a vector from the information of the normal map
-			Vector3f tN = Vector3f(colN.x() - 0.5f, colN.y() - 0.5f, colN.z() - 0.5f).normalized();
+			float z = 128.0f / 255.0f;
+			Vector3f tN = 2.0f * (Vector3f(colN.x(), colN.y(), colN.z()) - Vector3f(z));
 			// Transform the new normal
 			Normal3f n = its.shFrame.toWorld(tN);
 
-			its.shFrame = Frame(tangent, bitangent, normal);
+			// recompute proper Frame with new normal
+			Frame fn = computeTangents(p0, p1, p2, m_UV.col(idx0), m_UV.col(idx1), m_UV.col(idx2), n);
+			its.shFrame = fn;
+			//printf("2. normal: %.2f, %.2f, %.2f\n", its.shFrame.n.x(), its.shFrame.n.y(), its.shFrame.n.z());
+			//printf("Tangent-Test %.2f\n", its.shFrame.s.dot(its.shFrame.t));
 		}
 
     } else {
         its.shFrame = its.geoFrame;
     }
+}
+
+Frame Mesh::computeTangents(Point3f p0, Point3f p1, Point3f p2, Point3f uv0, Point3f uv1, Point3f uv2, Normal3f n) const {
+	/* Compute the tangent/bitangent in direction of the texture axis u/v */
+	Vector3f dUV1 = uv1 - uv0;
+	Vector3f dUV2 = uv2 - uv0;
+	Vector3f dV1 = p1 - p0;
+	Vector3f dV2 = p2 - p0;
+
+	float invF = 1.0f / (dUV1.x() * dUV2.y() - dUV1.y() * dUV2.x());
+	Vector3f tangent = invF * (dV1 * dUV2.y() - dV2 * dUV1.y());
+	tangent = (tangent - tangent.dot(n) * n).normalized();
+	//Vector3f bitangent = invF * (-(dV1 * dUV2.x()) - dV2 * dUV1.x());
+	Vector3f bitangent = n.cross(tangent);
+	bitangent.normalize();
+
+	return Frame(tangent, bitangent, n);
 }
 
 BoundingBox3f Mesh::getBoundingBox(uint32_t index) const {
