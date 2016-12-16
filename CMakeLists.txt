@@ -87,6 +87,7 @@ add_executable(nori
   src/path_mis.cpp
   src/disney.cpp
   src/imagetexture.cpp
+  src/path_mis_hpm.cpp
 
   src/lodepng.cpp
 )

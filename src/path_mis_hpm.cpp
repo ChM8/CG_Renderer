@@ -3,12 +3,13 @@
 #include <nori/bsdf.h>
 #include <nori/common.h>
 #include <nori/sampler.h>
+#include <nori/warp.h>
 
 NORI_NAMESPACE_BEGIN
 
-class PathMisIntegrator : public Integrator {
+class PathMisHPMIntegrator : public Integrator {
 public:
-	PathMisIntegrator(const PropertyList &props) {
+	PathMisHPMIntegrator(const PropertyList &props) {
 		if (props.has("renderEmitter")) {
 			m_bRenderEmitter = props.getBoolean("renderEmitter");
 		}
@@ -17,7 +18,7 @@ public:
 		}
 	}
 
-	Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
+	Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray, const bool bInMedia=false) const {
 
 		// Define exitant radiance (black default)
 		Color3f exRad = Color3f(0.0f);
@@ -163,12 +164,12 @@ public:
 	}
 
 	std::string toString() const {
-		return "Path_Mats[]";
+		return "Path_Mis_HPM[]";
 	}
 protected:
 	float rayLength;
 	bool m_bRenderEmitter;
 };
 
-NORI_REGISTER_CLASS(PathMisIntegrator, "path_mis");
+NORI_REGISTER_CLASS(PathMisHPMIntegrator, "path_mis_hpm");
 NORI_NAMESPACE_END

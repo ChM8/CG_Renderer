@@ -25,7 +25,7 @@
 
 	<!-- Load a triangulated sphere -->
 	<mesh type="obj">
-		<string name="filename" value="sphere_3dsM.obj"/>
+		<string name="filename" value="meshes/sphere_3dsM.obj"/>
 		<bsdf type="disney">
 			<color name="baseColor" value="0.5 0 0"/>
 			<float name="subsurface" value="0" />
@@ -48,7 +48,7 @@
 
 		<!-- Load a triangulated sphere -->
 	<mesh type="obj">
-		<string name="filename" value="sphere_3dsM.obj"/>
+		<string name="filename" value="meshes/sphere_3dsM.obj"/>
 		<bsdf type="disney">
 			<color name="baseColor" value="0.5 0 0"/>
 			<float name="subsurface" value="0" />
@@ -71,7 +71,7 @@
 
 	<!-- Ground plane
 	<mesh type="obj">
-		<string name="filename" value="plane.obj"/>
+		<string name="filename" value="meshes/plane.obj"/>
 
 		<transform name="toWorld">
 			<scale value="5,1,5"/>
@@ -85,7 +85,7 @@
 
 	<!-- Ceiling plane -->
 	<mesh type="obj">
-		<string name="filename" value="plane.obj"/>
+		<string name="filename" value="meshes/plane.obj"/>
 
 		<!--<bsdf type="diffuse">
 			<color name="albedo" value="1,1,1"/>
