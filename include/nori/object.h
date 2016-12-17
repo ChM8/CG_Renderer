@@ -39,6 +39,7 @@ public:
         EPhaseFunction,
         EEmitter,
         EMedium,
+		EMediaContainer,
         ECamera,
         EIntegrator,
         ESampler,
@@ -59,6 +60,7 @@ public:
             case EIntegrator: return "integrator";
             case ESampler:    return "sampler";
             case ETest:       return "test";
+			case EMediaContainer:	return "media_container";
             default:          return "<unknown>";
         }
     }

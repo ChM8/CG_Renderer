@@ -18,7 +18,7 @@ public:
 		}
 	}
 
-	Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray, const bool bInMedia=false) const {
+	Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
 
 		// Define exitant radiance (black default)
 		Color3f exRad = Color3f(0.0f);
@@ -32,9 +32,11 @@ public:
 		int it = 0;
 		int minIt = 3;
 
+		// Prepare for Participating Media
+		bool bInMedia = false;
+
 		// Define a container for the ray that is sampled currently
 		Ray3f sRay = ray;
-
 		// Path-Tracing until break
 		while (true) {
 			

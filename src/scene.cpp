@@ -22,6 +22,7 @@
 #include <nori/sampler.h>
 #include <nori/camera.h>
 #include <nori/emitter.h>
+#include <nori/media_container.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -73,6 +74,10 @@ void Scene::addChild(NoriObject *obj) {
         case EEmitter:
             m_emitters.push_back(static_cast<Emitter *>(obj));
             break;
+
+		case EMediaContainer:
+			m_mediaContainers.push_back(static_cast<MediaContainer *>(obj));
+			break;
 
         case ESampler:
             if (m_sampler)

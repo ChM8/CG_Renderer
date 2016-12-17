@@ -19,8 +19,10 @@
 #if !defined(__NORI_SCENE_H)
 #define __NORI_SCENE_H
 
+
 #include <nori/bvh.h>
 #include <nori/emitter.h>
+#include <nori/media_container.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -63,10 +65,13 @@ public:
     /// Return a reference to an array containing all lights
     const std::vector<Emitter *> &getLights() const { return m_emitters; }
 
+	/// Return a reference to an array containing all containers of participating media
+	const std::vector<MediaContainer *> &getMediaContainers() const { return m_mediaContainers; }
+
     /// Return a random emitter
     const Emitter * getRandomEmitter(float rnd) const {
         auto const & n = m_emitters.size();
-        size_t index = std::min(
+        size_t index = (std::min)(
                 static_cast<size_t>(std::floor(n*rnd)),
                 n-1);
         return m_emitters[index];
@@ -140,6 +145,7 @@ private:
     BVH *m_bvh = nullptr;
 
     std::vector<Emitter *> m_emitters;
+	std::vector<MediaContainer *> m_mediaContainers;
 };
 
 NORI_NAMESPACE_END

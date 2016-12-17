@@ -44,6 +44,9 @@ add_executable(nori
   include/nori/vector.h
   include/nori/warp.h
   include/nori/lodepng.h
+  include/nori/phasefunction.h
+  include/nori/henyey_greenstein.h
+  include/nori/media_container.h
 
   # Source code files
   src/bitmap.cpp
@@ -88,6 +91,8 @@ add_executable(nori
   src/disney.cpp
   src/imagetexture.cpp
   src/path_mis_hpm.cpp
+  src/media_container.cpp
+  src/henyey_greenstein.cpp
 
   src/lodepng.cpp
 )
