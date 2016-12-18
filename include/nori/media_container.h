@@ -2,7 +2,7 @@
 #define __NORI_MEDIA_CONTAINER_H
 
 #include <Eigen/Geometry>
-#include <nori/object.h>
+#include <nori/shape.h>
 #include <nori/phasefunction.h>
 #include <nori/henyey_greenstein.h>
 
@@ -16,6 +16,7 @@ struct homMedia
 	float s;
 };
 
+// Extend shape for simple intersection
 class MediaContainer : public NoriObject {
 public:
 	MediaContainer();
@@ -27,10 +28,20 @@ public:
 	virtual float getExtinction(Point3f pos) const;
 	virtual float getMajExtinction() const;
 	virtual bool withinContainer(Point3f pos) const;
-	
-	EClassType getClassType() const override { return EMediaContainer; }
 
+	virtual std::string getName() const;
+	
+	// Shape overrides
+	EClassType getClassType() const override { return EMediaContainer; }
 	virtual std::string toString() const override;
+	virtual BoundingBox3f getBoundingBox(uint32_t index) const ;
+	virtual Point3f getCentroid(uint32_t index) const ;
+	virtual bool inRng(float x, float min, float max) const;
+	virtual bool rayIntersect(uint32_t index, const Ray3f &ray, float &u, float &v, float &t) const ;
+	virtual bool MediaContainer::setHitInformation(const Ray3f & ray, Intersection & its) const;
+	virtual void sampleSurface(ShapeQueryRecord & sRec, const Point2f & sample) const;
+	virtual float pdfSurface(const ShapeQueryRecord & sRec) const ;
+
 
 protected:
 	std::string m_name;
@@ -38,6 +49,10 @@ protected:
 	Vector3f m_rotationAxis;
 	float m_rotationAngle;
 	Vector3f m_scale;
+	// Transformation with scaling
+	Eigen::Transform<float, 3, Eigen::Affine> m_toLocalSc;
+	Eigen::Transform<float, 3, Eigen::Affine> m_toWorldSc;
+	// Transformation without scaling
 	Eigen::Transform<float, 3, Eigen::Affine> m_toLocal;
 	Eigen::Transform<float, 3, Eigen::Affine> m_toWorld;
 
@@ -45,6 +60,7 @@ protected:
 	homMedia m_homogeneous;
 	float m_majExtinction;
 	// Grid m_grid;
+
 };
 
 

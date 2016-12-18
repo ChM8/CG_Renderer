@@ -103,7 +103,8 @@
 
 	<media_container type="media_container">
 		<string name="name" value="test_media"/>
-		<vector name="scale" value="2, 2, 2" />
+		<vector name="position" value="0, 0.893051, 4"/>
+		<vector name="scale" value="0.5, 0.5, 0.5" />
 		<float name="henyey_greenstein" value="0.0"/>
 		<float name="absorption" value="0.1" />
 		<float name="scattering" value="0.1" />

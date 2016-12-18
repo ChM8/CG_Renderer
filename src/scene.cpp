@@ -77,6 +77,7 @@ void Scene::addChild(NoriObject *obj) {
 
 		case EMediaContainer:
 			m_mediaContainers.push_back(static_cast<MediaContainer *>(obj));
+			//m_shapes.push_back(static_cast<MediaContainer *>(obj));
 			break;
 
         case ESampler:

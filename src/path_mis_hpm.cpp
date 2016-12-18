@@ -7,6 +7,15 @@
 
 NORI_NAMESPACE_BEGIN
 
+// Smaller struct needed for more convenient computations
+struct MedT
+{
+	MediaContainer * m;
+	float t;
+
+	MedT(MediaContainer * m, float t) : m(m), t(t) {}
+};
+
 class PathMisHPMIntegrator : public Integrator {
 public:
 	PathMisHPMIntegrator(const PropertyList &props) {
@@ -32,8 +41,19 @@ public:
 		int it = 0;
 		int minIt = 3;
 
-		// Prepare for Participating Media
-		bool bInMedia = false;
+		// Prepare for Participating Media (already in a volume?)
+		bool inMedia = false;
+		std::vector<MediaContainer *> currMedia;
+		MediaContainer sampledMedia;
+		std::vector<MediaContainer *> allMedia = scene->getMediaContainers();
+		for (MediaContainer * m : allMedia) {
+			// Check if already within a hpm-container
+			if (m->withinContainer(ray.o)) {
+				currMedia.push_back(m);
+				inMedia = true;
+			}
+		}
+		
 
 		// Define a container for the ray that is sampled currently
 		Ray3f sRay = ray;
@@ -43,9 +63,64 @@ public:
 			/* Find the surface that is visible in the requested direction */
 			Intersection itsM;
 
-			if (!scene->rayIntersect(sRay, itsM)) {
-				// No intersection and therefore no incoming light
+			bool hitGeom = scene->rayIntersect(sRay, itsM);
+
+			// Check if a media_container is hit
+			bool hitPOI = false;
+			float tMed = sRay.maxt;
+			// Use a placeholder for the new state (current containers)
+			std::vector<MedT> tempRmv, tempNew;
+
+			for (MediaContainer * m : allMedia) {
+				Intersection itsMedium;
+				if (m->setHitInformation(sRay, itsMedium)) {
+					// Check if entering a medium/leaving a container
+					bool inList = false;
+					for (MediaContainer * c : currMedia) {
+						if (c->getName().compare(m->getName())) {
+							// Apparently leaving one - check if the one that is currently sampled
+							if (m->getName().compare(sampledMedia.getName())) {
+								// Make sure we don't just leave without any computations
+								hitPOI = true;
+								if (itsMedium.t <= tMed)
+									tMed = itsMedium.t;
+							}
+							inList = true;
+							// Add to candidates for removing
+							tempRmv.push_back(MedT(m, itsMedium.t));
+						}
+					}
+
+					// If not yet in the list -> entered a new volume
+					if (!inList) {
+						// Add to the candidates for adding to the current volumes
+						tempNew.push_back(MedT(m, itsMedium.t));
+						hitPOI = true;
+						if (itsMedium.t <= tMed)
+							tMed = itsMedium.t;
+					}
+
+				}
+			}
+
+			// Check candidates and adjust vector currMedia
+			// TODO
+
+			if (!(hitGeom || hitPOI || inMedia )) {
+				// No intersection, not within any medium and therefore no incoming light
 				break;
+			}
+			else if (hitGeom && (itsM.t <= tMed)) {
+				// Hit Geometry before Medium POI 
+
+			}
+			else {
+				// Medium POI or sampled distance reached
+			}
+
+			if (inMedia) {
+				// Distance sampling in one of the medias
+
 			}
 
 			// Get the intersection point and the BSDF there
