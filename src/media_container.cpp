@@ -27,6 +27,7 @@ MediaContainer::MediaContainer(const PropertyList &propList) {
 		m_homogeneous.p = &HenyeyGreenstein(propList.getFloat("henyey_greenstein", 0.0f));
 		m_homogeneous.a = propList.getFloat("absorption", 0.0f);
 		m_homogeneous.s = propList.getFloat("scattering", 0.0f);
+		m_homogeneous.e = propList.getColor("emission", Color3f(0.0f));
 
 		m_majExtinction = m_homogeneous.a + m_homogeneous.s;
 
@@ -49,11 +50,11 @@ MediaContainer::MediaContainer(const PropertyList &propList) {
 
 MediaContainer::MediaContainer()
 {
-	MediaContainer("media_container", Vector3f(0.0f), Vector3f(0.0f), 0.0f, Vector3f(0.0f), HenyeyGreenstein(0.0f), 0.0f, 0.0f);
+	MediaContainer("media_container", Vector3f(0.0f), Vector3f(0.0f), 0.0f, Vector3f(0.0f), HenyeyGreenstein(0.0f), 0.0f, 0.0f, Color3f(0.0f));
 }
 
 // Create a container with homogeneous media (default: cube 1x1x1 - adjust by scale)
-MediaContainer::MediaContainer(const std::string name, Vector3f trans, Vector3f rotAxis, float rotAngle, Vector3f scale, PhaseFunction &p, float absC, float sctC) {
+MediaContainer::MediaContainer(const std::string name, Vector3f trans, Vector3f rotAxis, float rotAngle, Vector3f scale, /*PhaseFunction*/HenyeyGreenstein &p, float absC, float sctC, Color3f em) {
 	m_name = name;
 	m_translation = trans;
 	m_rotationAxis = rotAxis;
@@ -64,6 +65,7 @@ MediaContainer::MediaContainer(const std::string name, Vector3f trans, Vector3f 
 	m_homogeneous.p = &p;
 	m_homogeneous.a = absC;
 	m_homogeneous.s = sctC;
+	m_homogeneous.e = em;
 
 	m_majExtinction = absC + sctC;
 
@@ -75,11 +77,14 @@ MediaContainer::MediaContainer(const std::string name, Vector3f trans, Vector3f 
 
 }
 
-Vector3f MediaContainer::samplePhaseFunction(Point3f pos, Point2f sample) const {
+Vector3f MediaContainer::samplePhaseFunction(const Point3f pos, const Point2f sample) const {
 		
 	if (!m_isVDB) {
 		// Homogeneous system
-		return m_homogeneous.p->sample(sample);
+		float j = 0.0f;
+		HenyeyGreenstein t = *m_homogeneous.p;
+		Vector3f res = t.sample(sample);
+		return res;
 	}
 	else {
 		Point3f posL = m_toLocalSc * pos;
@@ -105,6 +110,19 @@ float MediaContainer::getScattering(Point3f pos) const {
 	if (!m_isVDB) {
 		// Homogeneous system
 		return m_homogeneous.s;
+	}
+	else {
+		Point3f posL = m_toLocalSc * pos;
+
+		throw NoriException("VDB to implement!");
+	}
+}
+
+Color3f MediaContainer::getEmission(Point3f pos) const
+{
+	if (!m_isVDB) {
+		// Homogeneous system
+		return m_homogeneous.e;
 	}
 	else {
 		Point3f posL = m_toLocalSc * pos;

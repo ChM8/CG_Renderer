@@ -8,23 +8,16 @@
 
 NORI_NAMESPACE_BEGIN
 
-// Little container for some values needed during the calculations
-struct homMedia
-{
-	PhaseFunction * p;
-	float a;
-	float s;
-};
-
 // Extend shape for simple intersection
 class MediaContainer : public NoriObject {
 public:
 	MediaContainer();
 	MediaContainer(const PropertyList &propList);
-	MediaContainer(const std::string name, Vector3f trans, Vector3f rotAxis, float rotAngle, Vector3f scale, PhaseFunction &p, float absC, float sctC);
+	MediaContainer(const std::string name, Vector3f trans, Vector3f rotAxis, float rotAngle, Vector3f scale, /*PhaseFunction*/HenyeyGreenstein &p, float absC, float sctC, Color3f em);
 	virtual Vector3f samplePhaseFunction(Point3f pos, Point2f sample) const;
 	virtual float getAbsorbtion(Point3f pos) const;
 	virtual float getScattering(Point3f pos) const;
+	virtual Color3f getEmission(Point3f pos) const;
 	virtual float getExtinction(Point3f pos) const;
 	virtual float getMajExtinction() const;
 	virtual bool withinContainer(Point3f pos) const;
@@ -42,6 +35,16 @@ public:
 	virtual void sampleSurface(ShapeQueryRecord & sRec, const Point2f & sample) const;
 	virtual float pdfSurface(const ShapeQueryRecord & sRec) const ;
 
+	// Little container for some values needed during the calculations
+	struct homMedia
+	{
+		/*PhaseFunction*/HenyeyGreenstein * p;
+		float a;
+		float s;
+		Color3f e;
+
+		homMedia() {}
+	};
 
 protected:
 	std::string m_name;

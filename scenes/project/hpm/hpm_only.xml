@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+
+<scene>
+	<integrator type="path_mis_hpm"/>
+
+	<camera type="perspective">
+		<float name="fov" value="27.7856"/>
+		<transform name="toWorld">
+			<scale value="-1,1,1"/>
+			<lookat target="0, 0, 0" origin="0, 2, 2" up="0, 0, 1"/>
+		</transform>
+
+		<integer name="height" value="600"/>
+		<integer name="width" value="800"/>
+	</camera>
+
+	<sampler type="independent">
+		<integer name="sampleCount" value="512"/>
+	</sampler>
+
+	<media_container type="media_container">
+		<string name="name" value="test_media"/>
+		<vector name="position" value="0, 0, 0"/>
+		<vector name="scale" value="1, 1, 1" />
+		<float name="henyey_greenstein" value="0.0"/>
+		<float name="absorption" value="0.1" />
+		<float name="scattering" value="0.1" />
+		<color name="emission" value="0.1, 0.1, 0.1" />
+	</media_container>
+
+</scene>
