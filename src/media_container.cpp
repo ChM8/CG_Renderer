@@ -28,9 +28,10 @@ MediaContainer::MediaContainer(const PropertyList &propList) {
 		float abs = propList.getFloat("absorption", 0.0f);
 		float sc = propList.getFloat("scattering", 0.0f);
 		Color3f em = propList.getColor("emission", Color3f(0.0f));
-		m_homogeneous = &HomMedia(p, abs, sc, em);
+		m_homogeneous = HomMedia(p, abs, sc, em);
+		printf("abs=%.2f, sc=%.2f\n", m_homogeneous.a, m_homogeneous.s);
 
-		m_majExtinction = m_homogeneous->a + m_homogeneous->s;
+		m_majExtinction = abs + sc;
 
 		m_toLocalSc = Eigen::Translation3f(m_translation) * Eigen::AngleAxisf(m_rotationAngle, m_rotationAxis) * Eigen::Scaling(m_scale);
 		m_toWorldSc = m_toLocalSc.inverse();
@@ -63,7 +64,7 @@ MediaContainer::MediaContainer(const std::string name, Vector3f trans, Vector3f 
 	m_scale = scale;
 
 	m_isVDB = false;
-	m_homogeneous = &HomMedia(p, absC, sctC, em);
+	m_homogeneous = HomMedia(p, absC, sctC, em);
 
 	m_majExtinction = absC + sctC;
 
@@ -79,7 +80,8 @@ Vector3f MediaContainer::samplePhaseFunction(const Point3f pos, const Point2f sa
 		
 	if (!m_isVDB) {
 		// Homogeneous system
-		Vector3f res = m_homogeneous->p.sample(sample);
+		HenyeyGreenstein ph = m_homogeneous.p;
+		Vector3f res = ph.sample(sample);
 		return res;
 	}
 	else {
@@ -93,7 +95,7 @@ Vector3f MediaContainer::samplePhaseFunction(const Point3f pos, const Point2f sa
 float MediaContainer::getAbsorbtion(Point3f pos) const {
 	if (!m_isVDB) {
 		// Homogeneous system
-		return m_homogeneous->a;
+		return m_homogeneous.a;
 	}
 	else {
 		Point3f posL = m_toLocalSc * pos;
@@ -105,7 +107,7 @@ float MediaContainer::getAbsorbtion(Point3f pos) const {
 float MediaContainer::getScattering(Point3f pos) const {
 	if (!m_isVDB) {
 		// Homogeneous system
-		return m_homogeneous->s;
+		return m_homogeneous.s;
 	}
 	else {
 		Point3f posL = m_toLocalSc * pos;
@@ -118,7 +120,7 @@ Color3f MediaContainer::getEmission(Point3f pos) const
 {
 	if (!m_isVDB) {
 		// Homogeneous system
-		return m_homogeneous->e;
+		return m_homogeneous.e;
 	}
 	else {
 		Point3f posL = m_toLocalSc * pos;
@@ -130,7 +132,7 @@ Color3f MediaContainer::getEmission(Point3f pos) const
 float MediaContainer::getExtinction(Point3f pos) const {
 	if (!m_isVDB) {
 		// Homogeneous system
-		return m_homogeneous->s + m_homogeneous->a;
+		return m_homogeneous.s + m_homogeneous.a;
 	}
 	else {
 		Point3f posL = m_toLocalSc * pos;

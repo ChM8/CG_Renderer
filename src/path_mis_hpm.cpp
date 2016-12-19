@@ -77,8 +77,10 @@ public:
 			}
 			// Else, continue path-tracing
 			tr /= succTr;
-			if (tr != tr)
+			if (tr != tr) {
 				printf("tr is nan!\n");
+				break;
+			}
 			itTr++;
 			
 			/* Find the surface that is visible in the requested direction */
@@ -104,9 +106,9 @@ public:
 				// Only stop for new containers or the end of the currenty sampled one
 				bool isNew = true;
 				for (MediaContainer * s : currMedia) {
-					if (c.m->getName().compare(s->getName())) {
+					if (c.m->getName()==s->getName()) {
 						// Already in this container, check if currently sampling it 
-						if (c.m->getName().compare(sampledMedia->getName()) && (c.t <= nIts.t))
+						if ((c.m->getName()==sampledMedia->getName()) && (c.t <= nIts.t))
 							nIts = c;
 						isNew = false;
 					}
@@ -271,9 +273,7 @@ public:
 				bool bLeaving = false;
 				std::vector<MediaContainer *> temp;
 				for (MediaContainer * m : currMedia) {
-					printf("name nIts: %s\n", nIts.m->getName());
-					printf("name m: %s\n", m->getName());
-					if (nIts.m->getName().compare(m->getName())) {
+					if (nIts.m->getName()==m->getName()) {
 						bLeaving = true;
 					}
 					else {

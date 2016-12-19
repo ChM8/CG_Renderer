@@ -8,6 +8,18 @@
 
 NORI_NAMESPACE_BEGIN
 
+// Little container for some values needed during the calculations
+struct HomMedia
+{
+	HenyeyGreenstein p;
+	float a;
+	float s;
+	Color3f e;
+
+	HomMedia() : p(HenyeyGreenstein(0.0f)), a(0.0f), s(0.1f), e(Color3f(0.0f)) {}
+	HomMedia(HenyeyGreenstein p, float a, float s, Color3f e) : p(p), a(a), s(s), e(e) {}
+};
+
 // Extend shape for simple intersection
 class MediaContainer : public NoriObject {
 public:
@@ -35,17 +47,6 @@ public:
 	virtual void sampleSurface(ShapeQueryRecord & sRec, const Point2f & sample) const;
 	virtual float pdfSurface(const ShapeQueryRecord & sRec) const ;
 
-	// Little container for some values needed during the calculations
-	struct HomMedia
-	{
-		HenyeyGreenstein p;
-		float a;
-		float s;
-		Color3f e;
-
-		HomMedia() : p(HenyeyGreenstein(0.0f)), a(0.0f), s(0.1f), e(Color3f(0.0f)) {}
-		HomMedia(HenyeyGreenstein p, float a, float s, Color3f e) : p(p), a(a), s(s), e(e) {}
-	};
 
 protected:
 	std::string m_name;
@@ -61,7 +62,7 @@ protected:
 	Eigen::Transform<float, 3, Eigen::Affine> m_toWorld;
 
 	bool m_isVDB;
-	HomMedia * m_homogeneous;
+	HomMedia m_homogeneous;
 	float m_majExtinction;
 	// Grid m_grid;
 

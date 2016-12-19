@@ -10,19 +10,26 @@ HenyeyGreenstein::HenyeyGreenstein(float g)
 }
 
 Vector3f HenyeyGreenstein::sample(Point2f sample) {
-	float g = (m_g == 0.0f) ? 0.0001 : m_g;
-	printf("m_g=%.2f", m_g);
-	float g2 = g*g;
-	float t1 = 1.0f / (2.0f * g);
-	float t2 = (1.0f - g2) / (1.0f - g + 2.0f * g * sample.x());
-	float th = acos(t1 * (1.0f + g2 - t2 * t2));
+	float th = 0.0f;
+	if (m_g != 0.0f) {
+		float g2 = m_g*m_g;
+		float t1 = 1.0f / (2.0f * m_g);
+		float t2 = (1.0f - g2) / (1.0f - m_g + 2.0f * m_g * sample.x());
+		// Clamp value (if there was some error and cosTh >1/<-1)
+		float cosTh = clamp(t1 * (1.0f + g2 - t2 * t2), -1.0f, 1.0f);
+		th = acos(cosTh);
+		/*if (th != th)
+			printf("Dir is nan! g=%.2f, x=%.2f, t1=%.2f, t2=%.2f, cosTh=%.2f, th=%.2f\n", m_g, sample.x(), t1, t2, cosTh, th);*/
+	}
+	else {
+		// isotropic
+		th = 2.0f * M_PI * sample.x();
+	}
 	float phi = 2.0f * M_PI * sample.y();
 
 	float x = sin(th) * sin(phi);
 	float y = sin(th) * cos(phi);
 	float z = cos(th);
-	if (x != x || y != y)
-		printf("Dir is nana! g=%.2f, t1=%.2f, t2=%.2f, th=%.2f\n", g, t1, t2, th);
 	return Vector3f(x, y, z);
 }
 
