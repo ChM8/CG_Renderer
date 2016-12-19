@@ -13,7 +13,7 @@ class MediaContainer : public NoriObject {
 public:
 	MediaContainer();
 	MediaContainer(const PropertyList &propList);
-	MediaContainer(const std::string name, Vector3f trans, Vector3f rotAxis, float rotAngle, Vector3f scale, /*PhaseFunction*/HenyeyGreenstein &p, float absC, float sctC, Color3f em);
+	MediaContainer(const std::string name, Vector3f trans, Vector3f rotAxis, float rotAngle, Vector3f scale, HenyeyGreenstein p, float absC, float sctC, Color3f em);
 	virtual Vector3f samplePhaseFunction(Point3f pos, Point2f sample) const;
 	virtual float getAbsorbtion(Point3f pos) const;
 	virtual float getScattering(Point3f pos) const;
@@ -36,14 +36,15 @@ public:
 	virtual float pdfSurface(const ShapeQueryRecord & sRec) const ;
 
 	// Little container for some values needed during the calculations
-	struct homMedia
+	struct HomMedia
 	{
-		/*PhaseFunction*/HenyeyGreenstein * p;
+		HenyeyGreenstein p;
 		float a;
 		float s;
 		Color3f e;
 
-		homMedia() {}
+		HomMedia() : p(HenyeyGreenstein(0.0f)), a(0.0f), s(0.1f), e(Color3f(0.0f)) {}
+		HomMedia(HenyeyGreenstein p, float a, float s, Color3f e) : p(p), a(a), s(s), e(e) {}
 	};
 
 protected:
@@ -60,7 +61,7 @@ protected:
 	Eigen::Transform<float, 3, Eigen::Affine> m_toWorld;
 
 	bool m_isVDB;
-	homMedia m_homogeneous;
+	HomMedia * m_homogeneous;
 	float m_majExtinction;
 	// Grid m_grid;
 

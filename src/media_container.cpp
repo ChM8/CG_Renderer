@@ -24,12 +24,13 @@ MediaContainer::MediaContainer(const PropertyList &propList) {
 		m_rotationAngle = propList.getFloat("rotation_angle", 0.0f);
 		m_scale = propList.getVector3("scale", Vector3f(0.0f));
 			
-		m_homogeneous.p = &HenyeyGreenstein(propList.getFloat("henyey_greenstein", 0.0f));
-		m_homogeneous.a = propList.getFloat("absorption", 0.0f);
-		m_homogeneous.s = propList.getFloat("scattering", 0.0f);
-		m_homogeneous.e = propList.getColor("emission", Color3f(0.0f));
+		HenyeyGreenstein p = HenyeyGreenstein(propList.getFloat("henyey_greenstein", 0.0f));
+		float abs = propList.getFloat("absorption", 0.0f);
+		float sc = propList.getFloat("scattering", 0.0f);
+		Color3f em = propList.getColor("emission", Color3f(0.0f));
+		m_homogeneous = &HomMedia(p, abs, sc, em);
 
-		m_majExtinction = m_homogeneous.a + m_homogeneous.s;
+		m_majExtinction = m_homogeneous->a + m_homogeneous->s;
 
 		m_toLocalSc = Eigen::Translation3f(m_translation) * Eigen::AngleAxisf(m_rotationAngle, m_rotationAxis) * Eigen::Scaling(m_scale);
 		m_toWorldSc = m_toLocalSc.inverse();
@@ -54,7 +55,7 @@ MediaContainer::MediaContainer()
 }
 
 // Create a container with homogeneous media (default: cube 1x1x1 - adjust by scale)
-MediaContainer::MediaContainer(const std::string name, Vector3f trans, Vector3f rotAxis, float rotAngle, Vector3f scale, /*PhaseFunction*/HenyeyGreenstein &p, float absC, float sctC, Color3f em) {
+MediaContainer::MediaContainer(const std::string name, Vector3f trans, Vector3f rotAxis, float rotAngle, Vector3f scale, HenyeyGreenstein p, float absC, float sctC, Color3f em) {
 	m_name = name;
 	m_translation = trans;
 	m_rotationAxis = rotAxis;
@@ -62,10 +63,7 @@ MediaContainer::MediaContainer(const std::string name, Vector3f trans, Vector3f 
 	m_scale = scale;
 
 	m_isVDB = false;
-	m_homogeneous.p = &p;
-	m_homogeneous.a = absC;
-	m_homogeneous.s = sctC;
-	m_homogeneous.e = em;
+	m_homogeneous = &HomMedia(p, absC, sctC, em);
 
 	m_majExtinction = absC + sctC;
 
@@ -81,9 +79,7 @@ Vector3f MediaContainer::samplePhaseFunction(const Point3f pos, const Point2f sa
 		
 	if (!m_isVDB) {
 		// Homogeneous system
-		float j = 0.0f;
-		HenyeyGreenstein t = *m_homogeneous.p;
-		Vector3f res = t.sample(sample);
+		Vector3f res = m_homogeneous->p.sample(sample);
 		return res;
 	}
 	else {
@@ -97,7 +93,7 @@ Vector3f MediaContainer::samplePhaseFunction(const Point3f pos, const Point2f sa
 float MediaContainer::getAbsorbtion(Point3f pos) const {
 	if (!m_isVDB) {
 		// Homogeneous system
-		return m_homogeneous.a;
+		return m_homogeneous->a;
 	}
 	else {
 		Point3f posL = m_toLocalSc * pos;
@@ -109,7 +105,7 @@ float MediaContainer::getAbsorbtion(Point3f pos) const {
 float MediaContainer::getScattering(Point3f pos) const {
 	if (!m_isVDB) {
 		// Homogeneous system
-		return m_homogeneous.s;
+		return m_homogeneous->s;
 	}
 	else {
 		Point3f posL = m_toLocalSc * pos;
@@ -122,7 +118,7 @@ Color3f MediaContainer::getEmission(Point3f pos) const
 {
 	if (!m_isVDB) {
 		// Homogeneous system
-		return m_homogeneous.e;
+		return m_homogeneous->e;
 	}
 	else {
 		Point3f posL = m_toLocalSc * pos;
@@ -134,7 +130,7 @@ Color3f MediaContainer::getEmission(Point3f pos) const
 float MediaContainer::getExtinction(Point3f pos) const {
 	if (!m_isVDB) {
 		// Homogeneous system
-		return m_homogeneous.s + m_homogeneous.a;
+		return m_homogeneous->s + m_homogeneous->a;
 	}
 	else {
 		Point3f posL = m_toLocalSc * pos;

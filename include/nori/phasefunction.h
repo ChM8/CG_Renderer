@@ -6,6 +6,10 @@ NORI_NAMESPACE_BEGIN
 // Abstract interface for the implementations of phase functions (e.g. HenyeyGreenstein)
 class PhaseFunction {
 public:
+
+	PhaseFunction() {}
+
+	PhaseFunction(float param) {}
 	
 	virtual Vector3f sample(Point2f sample) = 0;
 

@@ -271,6 +271,8 @@ public:
 				bool bLeaving = false;
 				std::vector<MediaContainer *> temp;
 				for (MediaContainer * m : currMedia) {
+					printf("name nIts: %s\n", nIts.m->getName());
+					printf("name m: %s\n", m->getName());
 					if (nIts.m->getName().compare(m->getName())) {
 						bLeaving = true;
 					}
