@@ -129,6 +129,36 @@ Color3f MediaContainer::getEmission(Point3f pos) const
 	}
 }
 
+float MediaContainer::getPhaseFunctionValue(Point3f pos, float cosTh) const
+{
+	if (!m_isVDB) {
+		// Homogeneous system
+		HenyeyGreenstein ph = m_homogeneous.p;
+		float res = ph.eval(cosTh);
+		return res;
+	}
+	else {
+		Point3f posL = m_toLocalSc * pos;
+
+		throw NoriException("VDB to implement!");
+	}
+}
+
+float MediaContainer::getPhaseFunctionPDF(Point3f pos, float cosTh) const
+{
+	if (!m_isVDB) {
+		// Homogeneous system
+		HenyeyGreenstein ph = m_homogeneous.p;
+		float res = ph.pdf(cosTh);
+		return res;
+	}
+	else {
+		Point3f posL = m_toLocalSc * pos;
+
+		throw NoriException("VDB to implement!");
+	}
+}
+
 float MediaContainer::getExtinction(Point3f pos) const {
 	if (!m_isVDB) {
 		// Homogeneous system

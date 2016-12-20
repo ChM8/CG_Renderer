@@ -9,6 +9,12 @@ HenyeyGreenstein::HenyeyGreenstein(float g)
 	m_g = g;
 }
 
+float HenyeyGreenstein::eval(float cosTh)
+{
+	// The same
+	return pdf(cosTh);
+}
+
 Vector3f HenyeyGreenstein::sample(Point2f sample) {
 	float th = 0.0f;
 	if (m_g != 0.0f) {

@@ -29,6 +29,8 @@ public:
 
 	Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
 
+		bool singSc = false;
+
 		// Define exitant radiance (black default)
 		Color3f exRad = Color3f(0.0f);
 
@@ -60,10 +62,14 @@ public:
 
 		// Define a container for the ray that is sampled currently
 		Ray3f sRay = ray;
+		if (isinf(sRay.maxt))
+			printf("maxt inf");
 
 		// But if already in media, adjust the maximum ray length according to the sampling distance (woodcock)
-		if (inMedia)
+		if (inMedia) 
 			sRay.maxt = sampleDistance(currMedia, sRay.o, sampler->next2D(), sampledMedia);
+		if (isinf(sRay.maxt))
+			printf("maxt inf");
 
 		// Path-Tracing until break
 		while (true) {
@@ -134,17 +140,16 @@ public:
 				if (inMedia) {
 					// Compute current position
 					Vector3f diff = itsM.t * sRay.d;
-					float dx = sqrt(diff.dot(diff));
 
 					// Anyway, adjust transmittance
-					float integ = calcLinearInt(dx, sampledMedia->getExtinction(sRay.o), sampledMedia->getExtinction(itsM.p));
+					float integ = calcLinearInt(diff, sampledMedia->getExtinction(sRay.o), sampledMedia->getExtinction(itsM.p));
 					float addTr = exp(-integ);
 					tr = tr * addTr;
 					if (tr != tr)
 						printf("tr is nan!\n");
 
 					// And add emission
-					exRad += tr * calcLinearIntCol(dx, sampledMedia->getEmission(sRay.o), sampledMedia->getEmission(itsM.p));
+					exRad += tr * calcLinearIntCol(diff, sampledMedia->getEmission(sRay.o), sampledMedia->getEmission(itsM.p));
 				}
 
 				// Get the intersection point and the BSDF there
@@ -216,7 +221,7 @@ public:
 					wEm *= fac;
 				}
 
-				// Add new contributions. But also multiplay with transmittance (if the path has lead through media)
+				// Add new contributions. But also multiply with transmittance (if the path has lead through media)
 				exRad += wEm * t.cwiseProduct(emsEmS.cwiseProduct(emsBSDFRes)) * tr;
 
 				// Add the mats-contribution previously computed (wMat is 0 if not an emitter)
@@ -245,6 +250,9 @@ public:
 				// Use the sample direction in world-space for casting a ray
 				Vector3f woWC = itsM.toWorld(bsdfRec.wo);
 				sRay = Ray3f(itsM.p, woWC);
+				sRay.maxt = 10000;
+				if (isinf(sRay.maxt))
+					printf("maxt inf");
 
 				// HPM: Sample Distance when within medium
 				if (inMedia) {
@@ -266,7 +274,6 @@ public:
 			else if (hitPOI) {
 				// Hit no Geometry or medium POI is closer
 				Vector3f diff = nIts.t * sRay.d;
-				float dx = sqrt(diff.dot(diff));
 				Point3f pos = sRay.o + diff;
 
 				// Check if entering or leaving a container - adjust currMedia
@@ -289,14 +296,14 @@ public:
 				// If in media before POI...
 				if (inMedia) {
 					// Adjust transmittance from last path segment
-					float integ = calcLinearInt(dx, sampledMedia->getExtinction(sRay.o), sampledMedia->getExtinction(pos));
+					float integ = calcLinearInt(diff, sampledMedia->getExtinction(sRay.o), sampledMedia->getExtinction(pos));
 					float addTr = exp(-integ);
 					tr = tr * addTr;
 					if (tr != tr)
 						printf("tr is nan!\n");
 
 					// Add emission from medium during last path segment
-					exRad += tr * calcLinearIntCol(dx, sampledMedia->getEmission(sRay.o), sampledMedia->getEmission(pos));
+					exRad += tr * calcLinearIntCol(diff, sampledMedia->getEmission(sRay.o), sampledMedia->getEmission(pos));
 				}
 
 				// Sample distance for next step (if still or now in Medium)
@@ -309,6 +316,8 @@ public:
 				if (inMedia) {
 					// Sample distance according to a medium container
 					sRay.maxt = sampleDistance(currMedia, pos, sampler->next2D(), sampledMedia);
+					if (isinf(sRay.maxt))
+						printf("maxt inf");
 				}
 
 			}
@@ -320,18 +329,17 @@ public:
 
 				// Compute current position
 				Vector3f diff = sRay.maxt * sRay.d;
-				float dx = sqrt(diff.dot(diff));
 				Point3f pos = sRay.o + diff;
 
 				// Anyway, adjust transmittance
-				float integ = calcLinearInt(dx, sampledMedia->getExtinction(sRay.o), sampledMedia->getExtinction(pos));
+				float integ = calcLinearInt(diff, sampledMedia->getExtinction(sRay.o), sampledMedia->getExtinction(pos));
 				float addTr = exp(-integ);
 				tr = tr * addTr;
 				if (tr != tr)
-					printf("tr is nan!\n");
+					printf("tr is nan! diff=%.2f,%.2f,%.2f, ext_ray_o=%.2f\n", diff.x(), diff.y(), diff.z(), sampledMedia->getExtinction(sRay.o));
 
 				// And add emission
-				exRad += tr * calcLinearIntCol(dx, sampledMedia->getEmission(sRay.o), sampledMedia->getEmission(pos));
+				exRad += tr * calcLinearIntCol(diff, sampledMedia->getEmission(sRay.o), sampledMedia->getEmission(pos));
 
 				// and directly sample some emitter (MIS) - TODO
 
@@ -340,8 +348,45 @@ public:
 				float p = sampledMedia->getExtinction(pos) / sampledMedia->getMajExtinction();
 
 				if (sampler->next1D() < p) {
-					// Scattering event! Sample a new direction from the phase function and adjust sRay
+					// Scattering event! 
+					// First estimate direct contribution from a random light, then sample a direction for the path tracing
 
+					if (singSc) {
+						// Emitter sampling
+						// Choose a random emitter to sample
+						const Emitter* emsEm = scene->getRandomEmitter(sampler->next1D());
+						float probEm = 1.0f / scene->getLights().size();
+
+						// Create an EmitterQueryRecord
+						EmitterQueryRecord emsLRec = EmitterQueryRecord(pos);
+						// Sample the randomly chosen emitter and get the BSDF value (TODO: SolidAngle?)
+						Color3f emsEmS = emsEm->sample(emsLRec, sampler->next2D());
+						float emsEmPdf = emsLRec.pdf * probEm;
+
+						// Get the transmittance from the current position to the light source
+						float transm = estimTransmittance(scene, currMedia, pos, emsLRec.p, sampler);
+						float cosTh = sRay.d.dot((emsLRec.p - pos).normalized());
+						float phFVal, phFPDF = sampledMedia->getPhaseFunctionValue(pos, cosTh);
+
+						// Compute Weight and add Radiance
+						float wEmSc = 0.0f;
+						if (phFPDF != 0.0f || emsEmPdf != 0.0f) {
+							wEmSc = emsEmPdf / (phFPDF + emsEmPdf);
+						}
+						//printf("Emitter: BSDF pdf: %.2f, Emitter pdf: %.2f (%.2f * %.2f) -> wEm: %.2f\n", emsBSDFPdf, emsEmPdf, emsEm->pdf(emsLRec), probEm, wEm);
+
+						// Ajdust weights to sum up to one
+						if ((tr + wEmSc != 1.0f) && (tr != 0.0f || wEmSc != 0.0f)) {
+							float fac = 1 / (tr + wEmSc);
+							tr *= fac;
+							wEmSc *= fac;
+						}
+
+						// Add contribution. But also multiply with transmittance (if the path has lead through media)
+						exRad += wEmSc * t.cwiseProduct(emsEmS * phFVal) * tr;
+					}
+					
+					//Sample a new direction from the phase function and adjust sRay
 					Vector3f dir = sampledMedia->samplePhaseFunction(pos, sampler->next2D());
 					if (dir.x() != dir.x())
 						printf("Sampled dir is nan!\n");
@@ -358,12 +403,16 @@ public:
 
 					sRay = Ray3f(pos, dir);
 					sRay.maxt = dis;
+					if (isinf(sRay.maxt))
+						printf("maxt inf");
 
 				}
 				else {
 					// No scattering event - just sample a new distance in the same direction
 					sRay = Ray3f(pos, sRay.d);
 					sRay.maxt = sampleDistance(currMedia, pos, sampler->next2D(), sampledMedia);
+					if (isinf(sRay.maxt))
+						printf("maxt inf");
 				}
 
 			}
@@ -416,27 +465,185 @@ public:
 		float maj = chosenMedia->getMajExtinction();
 
 		// Now, sample the distance
-		float dis = -log(1.0f - sample.y()) / maj;
+		// Dummy number which should be large enough (in case of maj==0)
+		float dis = 10000;
+		if (maj != 0.0f) {
+			dis = -log(1.0f - sample.y()) / maj;
+		}
+
+		if (isinf(dis) || dis != dis)
+			printf("Distance is inf/nan!");
 
 		return dis;
 	}
 
+	// Estimates the transmittance from the point p to point t
+	virtual float estimTransmittance(const Scene * scene, const std::vector<MediaContainer *> & media, const Point3f p, const Point3f t, Sampler *sampler) const {
+		std::vector<MediaContainer *> cMed;
+		for (MediaContainer * m : media) {
+			cMed.push_back(m);
+		}
 
-	virtual Color3f estDirectContr() const {
-		throw NoriException("TODO");
+		// First check is simply for geometry on the path
+		float tol = 0.001f;
+		Intersection itsG;
+		Ray3f r = Ray3f(p, (t - p).normalized());
+		r.maxt = (t - p).norm() - tol; // minus tolerance of hitting target geometry
+		if (scene->rayIntersect(r, itsG)) {
+			// Geometry collision - no light 'transmittable'
+			return 0.0f;
+		}
+
+		// Woodcock-track the path towards t. (For as long as t is not reached)
+		MediaContainer * chM;
+		bool inMed = true; // Must be in a medium at the beginning
+		float trans = 1.0f;
+
+		while ((t - r.o).norm() > tol) {
+			if (inMed) {
+				// Sample a distance towards t
+				float dis = sampleDistance(cMed, r.o, sampler->next2D(), chM);
+				// Maximally walk up to t
+				r.maxt = std::min(dis, (t - r.o).norm());
+			}
+			else {
+				// Not in medium, so just try to walk the whole way
+				r.maxt = (t - r.o).norm();
+			}
+			
+
+			// Check for any intersections with MediaContainers (same procedure as in Li())
+			bool hitPOI = false;
+			bool hitM = false;
+			// Use a placeholder for the new state (current containers)
+			std::vector<MedT> candCont;
+
+			for (MediaContainer * m : scene->getMediaContainers()) {
+				Intersection itsMedium;
+				if (m->setHitInformation(r, itsMedium)) {
+					// Hit a container
+					candCont.push_back(MedT(m, itsMedium.t));
+					hitM = true;
+				}
+			}
+
+			// Check if any intersections
+			if (!hitM && !inMed) {
+				// Apparently there is nothing in between the current position and t
+				break;
+			}
+
+			// Check those MediaContainer intersections, find the closest one (create placeholder with impossible intersection 't')
+			MedT nIts = MedT(NULL, r.maxt + 1.0f);
+			for (MedT c : candCont) {
+				// Only stop for new containers or the end of the currenty sampled one
+				bool isNew = true;
+				for (MediaContainer * s : cMed) {
+					if (c.m->getName() == s->getName()) {
+						// Already in this container, check if currently sampling it 
+						if ((c.m->getName() == chM->getName()) && (c.t <= nIts.t))
+							nIts = c;
+						isNew = false;
+					}
+				}
+				if (isNew && (c.t < nIts.t)) {
+					// New container with a intersection nearer than the previous nearest.
+					nIts = c;
+				}
+			}
+
+			// Check if there is point of interest from a media container
+			hitPOI = nIts.m != NULL;
+			Vector3f diff;
+			Point3f pos;
+
+			if (hitPOI) {
+				// Reached the edge of a MediaContainer
+				diff = nIts.t * r.d;
+				pos = r.o + diff;
+
+				// Check if entering or leaving a container - adjust cMed
+				bool bLeaving = false;
+				std::vector<MediaContainer *> temp;
+				for (MediaContainer * m : cMed) {
+					if (nIts.m->getName() == m->getName()) {
+						bLeaving = true;
+					}
+					else {
+						// Not leaving this container *m, keep it
+						temp.push_back(m);
+					}
+				}
+				if (!bLeaving) {
+					// Not leaving - entering nIts.m
+					temp.push_back(nIts.m);
+				}
+
+				// If in media before POI...
+				if (inMed) {
+					// Adjust transmittance from last path segment
+					float integ = calcLinearInt(diff, chM->getExtinction(r.o), chM->getExtinction(pos));
+					float addTr = exp(-integ);
+					trans = trans * addTr;
+					if (trans != trans)
+						printf("trans is nan!\n");
+
+				}
+
+				// Adjust current situation
+				cMed = temp;
+				inMed = (temp.size() > 0);
+
+			}
+			else {
+				// No POI, next stop of woodcock-tracking
+				// Compute current position
+				diff = r.maxt * r.d;
+				pos = r.o + diff;
+
+				// Anyway, adjust transmittance
+				float integ = calcLinearInt(diff, chM->getExtinction(r.o), chM->getExtinction(pos));
+				float addTr = exp(-integ);
+				trans = trans * addTr;
+				if (trans != trans)
+					printf("trans is nan! diff=%.2f,%.2f,%.2f, ext_ray_o=%.2f\n", diff.x(), diff.y(), diff.z(), chM->getExtinction(r.o));
+
+				// Now check if a scattering event occurs
+				// Check if scattering event
+				float p = chM->getExtinction(pos) / chM->getMajExtinction();
+
+				if (sampler->next1D() < p) {
+					// Scattering event! 
+					// No light transmitted on this path from initial p to t
+					return 0.0f;
+				} // Else, simply continue
+			}
+
+			// Prepare for next step
+			r = Ray3f(pos, (t - pos).normalized());
+
+		}
+
+		// Reached t, return the computed transmission
+		return trans;
+
 	}
 
 	// Computes the integral of a function defined by two values y1,y2 separated by dx
-	virtual float calcLinearInt(float dx, float y1, float y2) const {
+	virtual float calcLinearInt(Vector3f diff, float y1, float y2) const {
+		float dx = sqrt(diff.dot(diff));
+		if (dx != dx)
+			printf("Integ: dx is nan!");
 		float dy = std::abs(y2 - y1);
 		float sy = std::min(y1, y2);
 		float res = (dx * dy) / 2.0f + dx * sy;
 		if (res != res)
-			printf("Integ nan!");
+			printf("Integ nan! diff: %.2f,%.2f,%.2f",diff.x(),diff.y(),diff.z());
 		return res;
 	}
 
-	virtual Color3f calcLinearIntCol(float dx, Color3f y1, Color3f y2) const {
+	virtual Color3f calcLinearIntCol(Vector3f diff, Color3f y1, Color3f y2) const {
+		float dx = sqrt(diff.dot(diff));
 		float dr = std::abs(y2.x() - y1.x());
 		float sr = std::min(y1.x(), y2.x());
 		float dg = std::abs(y2.y() - y1.y());

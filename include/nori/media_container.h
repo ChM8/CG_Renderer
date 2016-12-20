@@ -27,6 +27,8 @@ public:
 	MediaContainer(const PropertyList &propList);
 	MediaContainer(const std::string name, Vector3f trans, Vector3f rotAxis, float rotAngle, Vector3f scale, HenyeyGreenstein p, float absC, float sctC, Color3f em);
 	virtual Vector3f samplePhaseFunction(Point3f pos, Point2f sample) const;
+	virtual float getPhaseFunctionValue(Point3f pos, float cosTh) const;
+	virtual float getPhaseFunctionPDF(Point3f pos, float cosTh) const;
 	virtual float getAbsorbtion(Point3f pos) const;
 	virtual float getScattering(Point3f pos) const;
 	virtual Color3f getEmission(Point3f pos) const;

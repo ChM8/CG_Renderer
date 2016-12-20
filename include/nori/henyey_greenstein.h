@@ -9,6 +9,8 @@ public:
 
 	HenyeyGreenstein(float g);
 
+	virtual float eval(float cosTh);
+
 	virtual Vector3f sample(Point2f sample);
 
 	virtual float pdf(float cosTh);
