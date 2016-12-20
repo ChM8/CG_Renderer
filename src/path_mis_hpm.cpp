@@ -25,11 +25,16 @@ public:
 		else {
 			m_bRenderEmitter = true;
 		}
+
+		if (props.has("mediaDirectIllum")) {
+			m_singSc = props.getBoolean("mediaDirectIllum");
+		}
+		else {
+			m_singSc = true;
+		}
 	}
 
 	Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
-
-		bool singSc = false;
 
 		// Define exitant radiance (black default)
 		Color3f exRad = Color3f(0.0f);
@@ -74,19 +79,21 @@ public:
 		// Path-Tracing until break
 		while (true) {
 
-			// Play Russian Roulette with the Transmittance (else without geometry, infinite loop)
+			/*// Play Russian Roulette with the Transmittance (else without geometry, infinite loop)
 			float succTr = (itTr >= minIt) ? std::min(tr, 0.999f) : 1.0f;
-			if (sampler->next1D() >= succTr) {
+			float r = sampler->next1D();
+			printf("R: %.4f\n", r);
+			if (r >= succTr) {
 				// Failed in Russian Roulette - break path-tracing
-				itTr = 0;
+				printf("Transmittance RR fail with succ: %.2f/%.2f -- it: %d, itTr: %d\n", r, succTr, it, itTr);
+				break;
+			}
+			if (succTr != succTr) {
+				printf("succTr is nan!\n");
 				break;
 			}
 			// Else, continue path-tracing
-			tr /= succTr;
-			if (tr != tr) {
-				printf("tr is nan!\n");
-				break;
-			}
+			tr /= succTr;*/
 			itTr++;
 			
 			/* Find the surface that is visible in the requested direction */
@@ -106,6 +113,21 @@ public:
 				}
 			}
 
+			// Controll check if within media
+			bool withinContainer = false;
+			for (MediaContainer * m : allMedia) {
+				// Check if already within a hpm-container
+				if (m->withinContainer(sRay.o)) {
+					currMedia.push_back(m);
+					withinContainer = true;
+				}
+			}
+
+			if (inMedia && candCont.size() == 0) {
+				// Something went wrong here...
+				break;
+			}
+
 			// Check those MediaContainer intersections, find the closest one (create placeholder with impossible intersection 't')
 			MedT nIts = MedT(NULL, sRay.maxt + 1.0f);
 			for (MedT c : candCont) {
@@ -114,8 +136,9 @@ public:
 				for (MediaContainer * s : currMedia) {
 					if (c.m->getName()==s->getName()) {
 						// Already in this container, check if currently sampling it 
-						if ((c.m->getName()==sampledMedia->getName()) && (c.t <= nIts.t))
+						if ((c.m->getName() == sampledMedia->getName()) && (c.t <= nIts.t)) {
 							nIts = c;
+						}
 						isNew = false;
 					}
 				}
@@ -128,11 +151,7 @@ public:
 			// Check if there is point of interest from a media container
 			hitPOI = nIts.m != NULL;
 
-			if (!(hitGeom || hitPOI || inMedia)) {
-				// No intersection, not within any medium and therefore no incoming light
-				break;
-			}
-			else if (hitGeom && (itsM.t <= nIts.t)) {
+			if (hitGeom && (itsM.t <= nIts.t)) {
 				// Hit Geometry before medium POI or Scattering event -> handle geometry
 				// Default case: compute light reflected by surface but adjust by Transmittance
 
@@ -226,10 +245,19 @@ public:
 
 				// Add the mats-contribution previously computed (wMat is 0 if not an emitter)
 				exRad += wMat * t.cwiseProduct(matsEmEval) * tr;
+				/*if (inMedia) {
+					printf("it: %d, itTr: %d\n",it,itTr);
+					printf("Em add. in media: %.2f * %.2f * %.2f,%.2f,%.2f * %.2f,%.2f,%.2f * %.2f\n", wEm, t, emsEmS.x(), emsEmS.y(), emsEmS.z(), emsBSDFRes.x(), emsBSDFRes.y(), emsBSDFRes.z(), tr);
+					printf("Mat add. in media: %.2f * %.2f * %.2f,%.2f,%.2f * %.2f\n", wMat, t, matsEmEval.x(), matsEmEval.y(), matsEmEval.z(), tr);
+				}*/
 
 				if (!exRad.isValid())
 					printf("Not valid exRad!\n");
 
+				if (itsM.mesh->isEmitter()) {
+					// Hit an emitter, added contribution. Stop tracing
+					break;
+				}
 
 				// Success-probability is the throughput (decreasing with the contribution)
 				float succProb = (it >= minIt) ? std::min(t.maxCoeff(), 0.999f) : 1.0f;
@@ -246,17 +274,30 @@ public:
 				bsdfRec.uv = itsM.uv;
 				// sample
 				Color3f bsdfRes = objBSDF->sample(bsdfRec, sampler->next2D());
+
+				if (bsdfRes.maxCoeff() == 0.0f) {
+					// t will be 0 after the next calculation (because of the bsdf result)
+					// No need to calculate anything.
+					break;
+				}
+
 				matsBSDFPdf = objBSDF->pdf(bsdfRec);
 				// Use the sample direction in world-space for casting a ray
 				Vector3f woWC = itsM.toWorld(bsdfRec.wo);
 				sRay = Ray3f(itsM.p, woWC);
+				if (sRay.d.x() == 0.0f && sRay.d.y() == 0.0f) {
+					printf("Ray.d is zero!\n");
+					if (itsM.mesh->isEmitter())
+						printf("Was emitter!\n");
+					break;
+				}
 				sRay.maxt = 10000;
 				if (isinf(sRay.maxt))
 					printf("maxt inf");
 
 				// HPM: Sample Distance when within medium
 				if (inMedia) {
-					sRay.d = sampleDistance(currMedia, itsM.p, sampler->next2D(), sampledMedia);
+					sRay.maxt = sampleDistance(currMedia, itsM.p, sampler->next2D(), sampledMedia);
 				}
 
 				// Check if BSDF at this position is delta
@@ -321,8 +362,8 @@ public:
 				}
 
 			}
-			else {
-				// No geometry intersection/no media POI - but apparently still in Media (else break; in first if-case)
+			else if (inMedia) {
+				// No geometry intersection/no media POI - but apparently still in Media
 				// Woodcock-Tracking
 				// -> maybe scattering event, sample new direction from phase function
 				// or simply continue with the tracking
@@ -331,18 +372,12 @@ public:
 				Vector3f diff = sRay.maxt * sRay.d;
 				Point3f pos = sRay.o + diff;
 
-				// Anyway, adjust transmittance
+				// Adjust transmittance
 				float integ = calcLinearInt(diff, sampledMedia->getExtinction(sRay.o), sampledMedia->getExtinction(pos));
 				float addTr = exp(-integ);
 				tr = tr * addTr;
 				if (tr != tr)
 					printf("tr is nan! diff=%.2f,%.2f,%.2f, ext_ray_o=%.2f\n", diff.x(), diff.y(), diff.z(), sampledMedia->getExtinction(sRay.o));
-
-				// And add emission
-				exRad += tr * calcLinearIntCol(diff, sampledMedia->getEmission(sRay.o), sampledMedia->getEmission(pos));
-
-				// and directly sample some emitter (MIS) - TODO
-
 
 				// Check if scattering event
 				float p = sampledMedia->getExtinction(pos) / sampledMedia->getMajExtinction();
@@ -351,7 +386,7 @@ public:
 					// Scattering event! 
 					// First estimate direct contribution from a random light, then sample a direction for the path tracing
 
-					if (singSc) {
+					if (m_singSc) {
 						// Emitter sampling
 						// Choose a random emitter to sample
 						const Emitter* emsEm = scene->getRandomEmitter(sampler->next1D());
@@ -384,6 +419,9 @@ public:
 
 						// Add contribution. But also multiply with transmittance (if the path has lead through media)
 						exRad += wEmSc * t.cwiseProduct(emsEmS * phFVal) * tr;
+
+						// And add emission (weight has been adjusted within tr)
+						exRad += tr * calcLinearIntCol(diff, sampledMedia->getEmission(sRay.o), sampledMedia->getEmission(pos));
 					}
 					
 					//Sample a new direction from the phase function and adjust sRay
@@ -409,6 +447,10 @@ public:
 				}
 				else {
 					// No scattering event - just sample a new distance in the same direction
+
+					// Add emission
+					exRad += tr * calcLinearIntCol(diff, sampledMedia->getEmission(sRay.o), sampledMedia->getEmission(pos));
+
 					sRay = Ray3f(pos, sRay.d);
 					sRay.maxt = sampleDistance(currMedia, pos, sampler->next2D(), sampledMedia);
 					if (isinf(sRay.maxt))
@@ -416,6 +458,13 @@ public:
 				}
 
 			}
+			else {
+				// Not in media and no intersection
+				break;
+			}
+
+			/*printf("hitGeom: %s, medPOI: %s, inMedia: %s \n", hitGeom ? "true" : "false", hitPOI ? "true" : "false", inMedia ? "true" : "false");
+			printf("sRay.maxt = %.2f\n", sRay.maxt);*/
 
 
 		}
@@ -499,7 +548,7 @@ public:
 		bool inMed = true; // Must be in a medium at the beginning
 		float trans = 1.0f;
 
-		while ((t - r.o).norm() > tol) {
+		while ((t - r.o).norm() > tol && trans > 0.000001f) {
 			if (inMed) {
 				// Sample a distance towards t
 				float dis = sampleDistance(cMed, r.o, sampler->next2D(), chM);
@@ -656,6 +705,7 @@ public:
 protected:
 	float rayLength;
 	bool m_bRenderEmitter;
+	bool m_singSc;
 };
 
 NORI_REGISTER_CLASS(PathMisHPMIntegrator, "path_mis_hpm");

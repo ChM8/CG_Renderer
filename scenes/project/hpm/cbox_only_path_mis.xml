@@ -1,7 +1,9 @@
 <?xml version='1.0' encoding='utf-8'?>
 
 <scene>
-	<integrator type="path_mis_hpm"/>
+	<integrator type="path_mis_hpm">
+		<boolean name="mediaDirectIllum" value="true"/>
+	</integrator>
 
 	<camera type="perspective">
 		<float name="fov" value="27.7856"/>

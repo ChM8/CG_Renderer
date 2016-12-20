@@ -1,7 +1,9 @@
 <?xml version='1.0' encoding='utf-8'?>
 
 <scene>
-	<integrator type="path_mis_hpm"/>
+	<integrator type="path_mis_hpm">
+		<boolean name="mediaDirectIllum" value="false"/>
+	</integrator>
 
 	<camera type="perspective">
 		<float name="fov" value="27.7856"/>
@@ -25,7 +27,7 @@
 		<float name="henyey_greenstein" value="10"/>
 		<float name="absorption" value="0.5" />
 		<float name="scattering" value="0.3" />
-		<color name="emission" value="0.2, 0.2, 0.2" />
+		<color name="emission" value="1, 1, 1" />
 	</media_container>
 
 </scene>

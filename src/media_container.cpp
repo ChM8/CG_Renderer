@@ -364,22 +364,30 @@ bool MediaContainer::setHitInformation(const Ray3f & ray, Intersection & its) co
 
 	if (!m_isVDB) {
 
-		Ray3f lRay = Ray3f(ray);
-		lRay.o = m_toLocal * lRay.o;
-		lRay.d = m_toLocal * lRay.d;
+		Ray3f lRay;
+		lRay.o = m_toLocal * ray.o;
+		//printf("lRay.o = %.2f,%.2f,%.2f and ray.o = %.2f,%.2f,%.2f\n", lRay.o.x(), lRay.o.y(), lRay.o.z(), ray.o.x(), ray.o.y(), ray.o.z());
+		lRay.d = (m_toLocal * ray.d).normalized();
+		//printf("lRay.d = %.2f,%.2f,%.2f and ray.d = %.2f,%.2f,%.2f\n", lRay.d.x(), lRay.d.y(), lRay.d.z(), ray.d.x(), ray.d.y(), ray.d.z());
 
 		bool hit = false;
 		its.t = ray.maxt;
+
+		// Keep computed points/t's for debugging reasons...
+		std::vector<Point3f> points;
+		std::vector<Vector2f> ts;
 
 		// Default is a 1x1x1 cube - scale indicates axis aligned bounding box in local system (with respect to position/rotation)
 		Point3f min = -m_scale / 2.0f;
 		Point3f max = m_scale / 2.0f;
 		// First check y/z planes
-		Vector2f tc = (Vector2f(min.x(), max.x()) - Vector2f(lRay.o.x())) / lRay.d.x();
+		Vector2f tcC = (Vector2f(min.x(), max.x()) - Vector2f(lRay.o.x())) / lRay.d.x();
 		// Get the smaller result (if one)
-		tc = (tc.y() < tc.x()) ? Vector2f(tc.y(), tc.x()) : tc;
+		Vector2f tc = (tc.y() < tc.x()) ? Vector2f(tcC.y(), tcC.x()) : tcC;
+		ts.push_back(tc);
 		if (inRng(tc.x(), lRay.mint, lRay.maxt) && (tc.x() < its.t)) {
 			Point3f p = lRay.o + tc.x() * lRay.d;
+			points.push_back(p);
 			if (inRng(p.y(), min.y(), max.y()) && inRng(p.z(), min.z(), max.z())) {
 				// Valid intersection
 				its.t = tc.x();
@@ -392,6 +400,7 @@ bool MediaContainer::setHitInformation(const Ray3f & ray, Intersection & its) co
 		}
 		else if (inRng(tc.y(), lRay.mint, lRay.maxt) && (tc.x() < its.t)) {
 			Point3f p = lRay.o + tc.y() * lRay.d;
+			points.push_back(p);
 			if (inRng(p.y(), min.y(), max.y()) && inRng(p.z(), min.z(), max.z())) {
 				// Valid intersection
 				its.t = tc.y();
@@ -402,13 +411,16 @@ bool MediaContainer::setHitInformation(const Ray3f & ray, Intersection & its) co
 				its.mesh = this;*/
 			}
 		}
+
 
 		// Check x/z planes
 		tc = (Vector2f(min.y(), max.y()) - Vector2f(lRay.o.y())) / lRay.d.y();
 		// Get the smaller result (if one)
 		tc = (tc.y() < tc.x()) ? Vector2f(tc.y(), tc.x()) : tc;
+		ts.push_back(tc);
 		if (inRng(tc.x(), lRay.mint, lRay.maxt) && (tc.x() < its.t)) {
 			Point3f p = lRay.o + tc.x() * lRay.d;
+			points.push_back(p);
 			if (inRng(p.x(), min.x(), max.x()) && inRng(p.z(), min.z(), max.z())) {
 				// Valid intersection
 				its.t = tc.x();
@@ -421,6 +433,7 @@ bool MediaContainer::setHitInformation(const Ray3f & ray, Intersection & its) co
 		}
 		else if (inRng(tc.y(), lRay.mint, lRay.maxt) && (tc.x() < its.t)) {
 			Point3f p = lRay.o + tc.y() * lRay.d;
+			points.push_back(p);
 			if (inRng(p.x(), min.x(), max.x()) && inRng(p.z(), min.z(), max.z())) {
 				// Valid intersection
 				its.t = tc.y();
@@ -432,12 +445,15 @@ bool MediaContainer::setHitInformation(const Ray3f & ray, Intersection & its) co
 			}
 		}
 
+
 		// Lastly, check x/y planes
 		tc = (Vector2f(min.z(), max.z()) - Vector2f(lRay.o.z())) / lRay.d.z();
 		// Get the smaller result (if one)
 		tc = (tc.y() < tc.x()) ? Vector2f(tc.y(), tc.x()) : tc;
+		ts.push_back(tc);
 		if (inRng(tc.x(), lRay.mint, lRay.maxt) && (tc.x() < its.t)) {
 			Point3f p = lRay.o + tc.x() * lRay.d;
+			points.push_back(p);
 			if (inRng(p.x(), min.x(), max.x()) && inRng(p.y(), min.y(), max.y())) {
 				// Valid intersection
 				its.t = tc.x();
@@ -450,6 +466,7 @@ bool MediaContainer::setHitInformation(const Ray3f & ray, Intersection & its) co
 		}
 		else if (inRng(tc.y(), lRay.mint, lRay.maxt) && (tc.x() < its.t)) {
 			Point3f p = lRay.o + tc.y() * lRay.d;
+			points.push_back(p);
 			if (inRng(p.x(), min.x(), max.x()) && inRng(p.y(), min.y(), max.y())) {
 				// Valid intersection
 				its.t = tc.y();
@@ -460,6 +477,10 @@ bool MediaContainer::setHitInformation(const Ray3f & ray, Intersection & its) co
 				its.mesh = this;*/
 			}
 		}
+
+		/*if (!hit && withinContainer(lRay.o)) {
+			printf("ERROR! Within container, but no hit!\n");
+		}*/
 
 		return hit;
 
